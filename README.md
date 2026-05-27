@@ -52,6 +52,39 @@ git push -u origin main
 ### 4. 공유
 위 URL을 그대로 슬랙·메일·문서에 붙이면 됩니다.
 
+## 업체에 보내줄 양식 (xlsx)
+
+본 repo의 `data/vendor_template.xlsx` 파일이 업체에게 보내줄 표준 양식입니다.
+이 파일은 [generate_vendor_template.py](scripts/generate_vendor_template.py)가 자동 생성하며, 스크립트를 수정하면 GitHub Actions가 다시 빌드해서 repo에 커밋합니다.
+
+### 양식 받기
+1. GitHub repo 페이지에서 `data/vendor_template.xlsx` 파일 클릭
+2. 우측 상단 `Download raw file` 버튼으로 다운로드
+3. 업체 담당자에게 메일/메신저로 전달
+
+### 양식 구성
+세 개의 시트가 들어 있습니다.
+
+| 시트 | 용도 |
+|---|---|
+| **안내** | 작성 방법·주의사항 설명 (업체가 먼저 봐야 할 페이지) |
+| **일일평가** | 매일 평가 후 1행씩 추가. 컬럼: 평가일 / 입실인원 / 주평가내용 / 일일평가 / 일일에러 / 연속성공 / 비고 |
+| **에러로그** | 에러 발생 시마다 1행 추가. 컬럼: No / 발생일 / 시각 / 회차 / 코드 / 유형 / 상세 / 원인 / 조치 / 결과 / 담당 |
+
+**중요**: 업체가 시트명·헤더명을 변경하면 자동 변환이 실패합니다. 양식 그대로 유지하도록 안내하세요. (build_dashboard_json.py는 유사어도 부분 매칭하지만, 안정성을 위해 양식 준수가 권장됩니다.)
+
+### 업체→GitHub 업로드 절차
+1. 업체가 작성·송부한 xlsx를 받습니다.
+2. GitHub repo 페이지에서 `data/raw/` 폴더로 이동: https://github.com/hdy-2382/SEC/tree/main/data/raw
+3. 우측 상단 `Add file → Upload files` 클릭
+4. xlsx를 드래그·드롭 (같은 이름 파일을 올리면 덮어쓰기됨 — 한 파일을 누적 관리하는 방식 권장)
+5. 화면 하단 `Commit changes` 클릭
+6. 약 1~2분 후 GitHub Actions가 자동으로 변환·배포 → 대시보드에 반영됩니다.
+
+Actions 진행 상황은 https://github.com/hdy-2382/SEC/actions 에서 실시간 확인 가능.
+
+---
+
 ## 매일 운영 — 데이터 갱신
 
 ### 방법 A: GitHub 웹에서 업로드 (가장 쉬움)

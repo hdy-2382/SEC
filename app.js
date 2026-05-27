@@ -34,6 +34,66 @@ async function loadData() {
   }
 }
 
+/* ─── 미니 시각화 헬퍼 ───────────────────── */
+// 평가 기간 timeline 막대: 경과·잔여 비율 표현
+function drawTimelineBar(elapsed, total) {
+  const host = $('kpi-days-timeline');
+  if (!host) return;
+  const pct = total > 0 ? Math.min(elapsed / total, 1) * 100 : 0;
+  host.innerHTML = `
+    <div class="tl-track">
+      <div class="tl-fill" style="width:${pct}%"></div>
+      <div class="tl-marker" style="left:${pct}%"></div>
+    </div>
+    <div class="tl-labels">
+      <span>D+${elapsed}</span>
+      <span>총 ${total}일</span>
+    </div>
+  `;
+}
+
+// 스파크라인: 부드러운 area + line
+function drawSparkline(svgId, values) {
+  const svg = $(svgId);
+  svg.innerHTML = '';
+  if (!values || values.length < 2) return;
+  const W = 100, H = 28;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const recent = values.slice(-20);
+  const n = recent.length;
+  const xs = i => (i / (n - 1)) * W;
+  const ys = v => H - 2 - ((v - min) / range) * (H - 4);
+  const pts = recent.map((v, i) => [xs(i), ys(v)]);
+  // smooth path
+  const linePath = smoothPath(pts);
+  const areaPath = `${linePath} L ${pts[pts.length - 1][0]} ${H} L ${pts[0][0]} ${H} Z`;
+  svg.innerHTML = `
+    <path class="spark-area" d="${areaPath}"/>
+    <path class="spark-line" d="${linePath}"/>
+    <circle class="spark-dot" cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="2.2"/>
+  `;
+}
+
+// Catmull-Rom 풍의 단순 smoothing (cubic Bezier)
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2[0]} ${p2[1]}`;
+  }
+  return d;
+}
+
 /* ─── 메인 렌더링 ──────────────────────── */
 function render() {
   // 메타
@@ -46,155 +106,331 @@ function render() {
   // 정렬
   DATA.daily.sort((a, b) => a.date.localeCompare(b.date));
 
+  const target = DATA.project.target;
+  const errLimit = DATA.project.errorLimit;
+
   // 누적 계산
-  let cum = 0, cumErr = 0, maxStreak = 0;
+  // - cumTotal/cumErr: 전체 누적 (참고용)
+  // - mtbiStreak: 현재 MTBI 시도에서의 누적 사이클. 에러 누적이 한도 초과(>errLimit)되면 0으로 초기화
+  // - attemptErrs: 현재 MTBI 시도에서의 누적 에러
+  let cum = 0, cumErr = 0;
+  let mtbiStreak = 0, attemptErrs = 0;
+  let maxMtbiStreak = 0;
+  let mtbiAttempt = 1;   // 몇 번째 시도인지
+
   DATA.daily.forEach(d => {
     cum += d.total;
     cumErr += d.errors;
     d.cumTotal = cum;
     d.cumErr = cumErr;
-    if (d.streak > maxStreak) maxStreak = d.streak;
+
+    attemptErrs += d.errors;
+    if (attemptErrs > errLimit) {
+      // 허용 한도 초과 → 시도 무효, 다음 시도 시작
+      mtbiStreak = 0;
+      attemptErrs = 0;
+      mtbiAttempt += 1;
+      d.reset = true;       // 차트에서 리셋 지점 표시용
+    } else {
+      mtbiStreak += d.total;
+    }
+    d.mtbiStreak = mtbiStreak;
+    d.attemptErrs = attemptErrs;
+    d.mtbiAttempt = mtbiAttempt;
+    if (mtbiStreak > maxMtbiStreak) maxMtbiStreak = mtbiStreak;
   });
 
-  const target = DATA.project.target;
-  const errLimit = DATA.project.errorLimit;
   const lastDay = DATA.daily[DATA.daily.length - 1];
-  const totalCycles = lastDay ? lastDay.cumTotal : 0;
-  const totalErrs = lastDay ? lastDay.cumErr : 0;
-  const pct = totalCycles / target;
+  const totalCycles = lastDay ? lastDay.cumTotal : 0;   // 전체 누적
+  const totalErrs   = lastDay ? lastDay.cumErr   : 0;
+  const currentMtbi = lastDay ? lastDay.mtbiStreak : 0;
+  const currentAttemptErrs = lastDay ? lastDay.attemptErrs : 0;
+  const achieved = currentMtbi >= target;
+  const pct = Math.min(currentMtbi / target, 1);
 
-  // Hero
-  $('hero-num').textContent = fmt(totalCycles);
-  $('hero-denom').textContent = fmt(target);
+  // ── 평가 기간 (startDate ~ endDate) 계산 ─────────────
+  const ONE_DAY = 86400000;
+  const startD  = new Date(DATA.project.startDate);
+  const endD    = DATA.project.endDate ? new Date(DATA.project.endDate) : null;
+  const today   = new Date(new Date().toISOString().slice(0, 10));   // 시간 제거
+  const totalPeriodDays = endD ? Math.round((endD - startD) / ONE_DAY) + 1 : null;
+  const elapsedDays    = Math.max(0, Math.round((today - startD) / ONE_DAY) + 1);
+  const remainingDays  = endD ? Math.max(0, Math.round((endD - today) / ONE_DAY)) : null;
+
+  // Hero — 도넛 + 통계 (MTBI 연속 성공 기준)
+  $('hero-num').textContent = fmt(currentMtbi);
   $('hero-goal').textContent = fmt(target);
-  $('hero-fill').style.width = Math.min(pct * 100, 100) + '%';
-  $('hero-pct').textContent = (pct * 100).toFixed(1) + '%';
+  $('hero-remain').textContent = fmt(Math.max(target - currentMtbi, 0));
+  $('hero-pct').textContent = achieved ? 'PASS' : (pct * 100).toFixed(1) + '%';
+  // 도넛 채우기: stroke-dashoffset 으로 진행률 표현 (둘레 = 2π × r = 2π × 100 ≈ 628.32)
+  const CIRC = 628.32;
+  $('hero-donut-fill').style.strokeDashoffset = CIRC * (1 - pct);
+  // 달성 시 도넛/숫자 컬러를 골드 톤으로
+  document.querySelector('.hero').classList.toggle('achieved', achieved);
 
-  // Error card
-  $('err-num').textContent = totalErrs;
+  // Error card — 현재 MTBI 시도 내 에러 카운트 기준
+  $('err-num').textContent = currentAttemptErrs;
   $('err-limit').textContent = errLimit;
   const errCard = $('error-card');
-  errCard.classList.toggle('danger', totalErrs >= errLimit);
+  errCard.classList.toggle('danger', currentAttemptErrs >= errLimit);
 
   const blocks = $('err-blocks');
   blocks.innerHTML = '';
   for (let i = 0; i < errLimit; i++) {
     const b = document.createElement('div');
-    b.className = 'block' + (i < totalErrs ? ' used' : '');
+    b.className = 'block' + (i < currentAttemptErrs ? ' used' : '');
     blocks.appendChild(b);
   }
 
-  $('err-desc').textContent = totalErrs >= errLimit
-    ? `허용 한도 ${errLimit}회 도달 — 즉시 검토 필요.`
-    : totalErrs === 0
-      ? '한도 내 안정 운영 중.'
-      : `한도까지 ${errLimit - totalErrs}회 여유.`;
+  // 일평균 에러 + 전체 누적
+  const avgErrPerDay = DATA.daily.length ? totalErrs / DATA.daily.length : 0;
+  $('err-avg').textContent = avgErrPerDay.toFixed(2);
+  $('err-total').textContent = fmt(totalErrs);
 
-  // KPI
-  $('kpi-streak').textContent = fmt(maxStreak);
-  $('kpi-streak-sub').textContent = lastDay && lastDay.streak === maxStreak
-    ? '현재 연속 진행 중' : `최근 종료 ${lastDay.streak}회`;
+  $('err-desc').textContent = currentAttemptErrs >= errLimit
+    ? `현재 시도 에러 한도 도달 — 1건 추가 시 MTBI 재시작.`
+    : currentAttemptErrs === 0
+      ? `현재 ${mtbiAttempt}차 시도 · 에러 0건, 안정 운영 중.`
+      : `현재 ${mtbiAttempt}차 시도 · 한도까지 ${errLimit - currentAttemptErrs}건 여유.`;
 
-  $('kpi-days').textContent = DATA.daily.length;
-  $('kpi-days-sub').textContent = `${DATA.project.startDate} 이후`;
+  // KPI ① 최장 MTBI 연속 (역대 최고치)
+  $('kpi-streak').textContent = fmt(maxMtbiStreak);
+  $('kpi-streak-sub').textContent = currentMtbi === maxMtbiStreak && !achieved
+    ? '현재 시도가 역대 최고'
+    : currentMtbi < maxMtbiStreak
+      ? `현재 ${fmt(currentMtbi)}회 (재시작 후)`
+      : 'MTBI 목표 도달';
+  // 막대: 최장 MTBI를 목표 대비로 표현
+  const streakBarPct = Math.min(maxMtbiStreak / target, 1) * 100;
+  $('kpi-streak-bar').setAttribute('width', streakBarPct);
 
+  // KPI ② 평가 진행 일수 — 시작일~종료일 timeline 기준
+  $('kpi-days').textContent = fmt(elapsedDays);
+  if (endD && totalPeriodDays) {
+    $('kpi-days-sub').innerHTML = `총 <strong>${fmt(totalPeriodDays)}일</strong> · 잔여 <strong>${fmt(remainingDays)}일</strong>`;
+  } else {
+    $('kpi-days-sub').textContent = `${DATA.project.startDate} 이후`;
+  }
+  // 미니 viz: 점 패턴 → timeline 막대로 교체
+  drawTimelineBar(elapsedDays, totalPeriodDays || elapsedDays);
+
+  // KPI ③ 일평균 평가 — 스파크라인
   const avg = DATA.daily.length ? Math.round(totalCycles / DATA.daily.length) : 0;
   $('kpi-avg').textContent = fmt(avg);
+  drawSparkline('kpi-avg-spark', DATA.daily.map(d => d.total));
 
-  // ETA
-  if (avg > 0 && totalCycles < target) {
-    const remaining = target - totalCycles;
-    const daysNeeded = Math.ceil(remaining / avg);
-    const eta = new Date(lastDay.date);
-    eta.setDate(eta.getDate() + daysNeeded);
-    $('kpi-eta').textContent = `D-${daysNeeded}`;
-    $('kpi-eta-sub').textContent = eta.toISOString().slice(0, 10) + ' 예상';
-  } else if (totalCycles >= target) {
-    $('kpi-eta').textContent = '달성';
-    $('kpi-eta-sub').textContent = '목표 도달';
+  // KPI ④ MTBI 시도 차수
+  $('kpi-attempt').innerHTML = `${mtbiAttempt}<span class="unit">차 시도</span>`;
+  if (mtbiAttempt === 1) {
+    $('kpi-attempt-sub').innerHTML = currentAttemptErrs === 0
+      ? `리셋 없이 진행 중 · 에러 ${currentAttemptErrs}/${errLimit}`
+      : `에러 ${currentAttemptErrs}/${errLimit}건 사용 중`;
+  } else {
+    $('kpi-attempt-sub').innerHTML = `과거 ${mtbiAttempt - 1}회 리셋 · 현재 에러 ${currentAttemptErrs}/${errLimit}`;
   }
+  // 미니 viz: 현재 시도 내 에러 사용량 (errors / limit)
+  const errUsagePct = Math.min(currentAttemptErrs / errLimit, 1) * 100;
+  $('kpi-attempt-bar').setAttribute('width', errUsagePct);
 
   // Summary
   const summaryParts = [];
-  summaryParts.push(`평가 시작 후 <strong>${DATA.daily.length}일</strong> 경과, 누적 <strong>${fmt(totalCycles)}회</strong> 진행 (${(pct*100).toFixed(1)}%).`);
-  if (totalErrs === 0) summaryParts.push(`<span class="ok">에러 0건</span>으로 안정 운영 중.`);
-  else if (totalErrs < errLimit) summaryParts.push(`에러 <strong>${totalErrs}건</strong> 발생, 한도(${errLimit}건) 내 여유 ${errLimit - totalErrs}건.`);
-  else summaryParts.push(`<span class="warn">에러 한도 초과 — 즉시 검토 필요.</span>`);
-  summaryParts.push(`최장 연속 <strong>${fmt(maxStreak)}회</strong> 기록.`);
+  summaryParts.push(`평가 시작 후 <strong>${DATA.daily.length}일</strong> 경과 · 누적 <strong>${fmt(totalCycles)}회</strong> 진행.`);
+  if (achieved) {
+    summaryParts.push(`<span class="ok">MTBI 목표(${fmt(target)}회) 달성</span> — ${mtbiAttempt}차 시도 성공.`);
+  } else {
+    summaryParts.push(`현재 ${mtbiAttempt}차 MTBI 시도 — <strong>${fmt(currentMtbi)} / ${fmt(target)}</strong> (${(pct*100).toFixed(1)}%).`);
+  }
+  if (currentAttemptErrs === 0) summaryParts.push(`<span class="ok">시도 내 에러 0건</span>.`);
+  else if (currentAttemptErrs < errLimit) summaryParts.push(`시도 내 에러 <strong>${currentAttemptErrs}건</strong> · 한도까지 ${errLimit - currentAttemptErrs}건 여유.`);
+  else summaryParts.push(`<span class="warn">시도 내 에러 한도 도달</span> — 1건 추가 시 재시작.`);
+  summaryParts.push(`역대 최장 MTBI <strong>${fmt(maxMtbiStreak)}회</strong>.`);
   $('summary-text').innerHTML = summaryParts.join(' ');
 
   drawCumulativeChart();
   drawErrorChart();
   drawDailyChart();
+  drawKeywordTop5();
   drawDailyTable();
   drawErrorTable();
 }
 
-/* ─── 차트: 누적 평가 추이 ────────────────── */
+/* ─── 알람 키워드 Top 5 ─────────────────── */
+// 한글 불용어 (의미 없는 조사·일반어). 필요시 도메인 키워드에 맞춰 확장.
+const STOPWORDS = new Set([
+  '오류','에러','문제','발생','확인','시험','검토','조정','조치','보정',
+  '추정','등의','등을','등은','또는','그리고','하지만','그러나',
+  '대상','이슈','이후','진행','완료','정상','복귀','상황','상태','관련',
+  '있음','없음','부분','경우','전체','일부','이번','당일','금일','금주',
+  '시스템','로봇'
+]);
+
+function extractKeywords(errors) {
+  if (!errors || !errors.length) return [];
+  // 에러 1건당 어떤 필드에서 추출했는지 추적 (요약 가능)
+  const counts = new Map();   // word → { count, samples: Set<errorNo> }
+  errors.forEach(e => {
+    const blob = `${e.type || ''} ${e.detail || ''} ${e.cause || ''} ${e.action || ''}`;
+    // 한글 2자 이상, 영문 3자 이상 토큰
+    const tokens = blob.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9]{2,}/g) || [];
+    const seen = new Set();   // 같은 에러에서 같은 단어는 1회만
+    tokens.forEach(t => {
+      const k = t.toLowerCase();
+      if (STOPWORDS.has(k) || STOPWORDS.has(t)) return;
+      if (seen.has(k)) return;
+      seen.add(k);
+      if (!counts.has(t)) counts.set(t, { count: 0, samples: new Set() });
+      const entry = counts.get(t);
+      entry.count += 1;
+      entry.samples.add(e.no);
+    });
+  });
+  return [...counts.entries()]
+    .map(([word, v]) => ({ word, count: v.count, samples: [...v.samples] }))
+    .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word))
+    .slice(0, 5);
+}
+
+function drawKeywordTop5() {
+  const host = $('keyword-list');
+  const top = extractKeywords(DATA.errors);
+  if (!top.length) {
+    host.innerHTML = `<div class="keyword-empty">에러 데이터가 쌓이면 키워드가 표시됩니다.</div>`;
+    return;
+  }
+  const maxCount = top[0].count;
+  host.innerHTML = top.map((k, i) => `
+    <div class="keyword-item">
+      <div class="keyword-rank">${i + 1}</div>
+      <div class="keyword-body">
+        <div class="keyword-row">
+          <span class="keyword-text">${k.word}</span>
+          <span class="keyword-count">${k.count}<span class="u">건</span></span>
+        </div>
+        <div class="keyword-bar">
+          <div class="fill" style="width:${(k.count / maxCount) * 100}%"></div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ─── 차트: MTBI 연속 사이클 추이 ──────────── */
 function drawCumulativeChart() {
   const svg = $('chart-cum');
   svg.innerHTML = '';
-  const W = 1200, H = 280, PAD = { l: 60, r: 30, t: 20, b: 40 };
+  const W = 1200, H = 280, PAD = { l: 60, r: 30, t: 24, b: 40 };
   const w = W - PAD.l - PAD.r;
   const h = H - PAD.t - PAD.b;
 
   const target = DATA.project.target;
-  const maxY = Math.max(target * 1.1, ...DATA.daily.map(d => d.cumTotal)) || target;
+  const maxY = Math.max(target * 1.15, ...DATA.daily.map(d => d.mtbiStreak)) || target;
   const n = DATA.daily.length;
 
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
   const ys = v => PAD.t + h - (v / maxY) * h;
 
+  // ── 배경 banded zones: TARGET 위쪽(달성존), 아래쪽(진행존) ─────
+  const tgtY = ys(target);
+  svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${tgtY - PAD.t}" fill="url(#zoneTargetGrad)"/>`;
+  svg.innerHTML += `<rect x="${PAD.l}" y="${tgtY}" width="${w}" height="${PAD.t + h - tgtY}" fill="url(#zoneSafeGrad)"/>`;
+
+  // ── Y축 grid + tick labels ─────────────────────────────────
   const ticks = 5;
   for (let i = 0; i <= ticks; i++) {
     const y = PAD.t + (i / ticks) * h;
     const val = Math.round(maxY * (1 - i / ticks));
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1"/>`;
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
     svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmt(val)}</text>`;
   }
 
-  const tgtY = ys(target);
-  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${tgtY}" y2="${tgtY}" stroke="#8B2E1F" stroke-width="1.5" stroke-dasharray="6,4"/>`;
-  svg.innerHTML += `<text x="${W - PAD.r}" y="${tgtY - 6}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#8B2E1F">TARGET ${fmt(target)}</text>`;
+  // ── TARGET 라인 ────────────────────────────────────────────
+  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${tgtY}" y2="${tgtY}" stroke="#B88A2B" stroke-width="2" stroke-dasharray="8,5" opacity="0.85"/>`;
+  svg.innerHTML += `
+    <g transform="translate(${PAD.l + 6}, ${tgtY - 9})">
+      <rect x="0" y="-12" width="98" height="20" rx="10" fill="#B88A2B"/>
+      <text x="49" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.08em">TARGET ${fmt(target)}</text>
+    </g>`;
 
   if (n > 0) {
-    let pathD = '';
-    let areaD = `M ${xs(0)} ${PAD.t + h}`;
+    // ── MTBI 라인: 시도(attempt)별로 segment 분할 (reset 지점에서 라인 끊김) ──
+    const segments = [];
+    let seg = [];
     DATA.daily.forEach((d, i) => {
-      const x = xs(i), y = ys(d.cumTotal);
-      pathD += (i === 0 ? 'M' : 'L') + ` ${x} ${y} `;
-      areaD += ` L ${x} ${y}`;
-    });
-    areaD += ` L ${xs(n - 1)} ${PAD.t + h} Z`;
-
-    svg.innerHTML += `<path d="${areaD}" fill="#1A2942" fill-opacity="0.06"/>`;
-    svg.innerHTML += `<path d="${pathD}" fill="none" stroke="#1A2942" stroke-width="2.5"/>`;
-
-    DATA.daily.forEach((d, i) => {
-      const x = xs(i), y = ys(d.cumTotal);
-      svg.innerHTML += `<circle cx="${x}" cy="${y}" r="3" fill="#1A2942"/>`;
-      if (d.errors > 0) {
-        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="6" fill="none" stroke="#8B2E1F" stroke-width="1.5"/>`;
+      if (d.reset && seg.length > 0) {
+        segments.push(seg);
+        seg = [];
       }
+      seg.push([xs(i), ys(d.mtbiStreak), d, i]);
+    });
+    if (seg.length > 0) segments.push(seg);
+
+    segments.forEach(segment => {
+      if (segment.length < 1) return;
+      const pts = segment.map(s => [s[0], s[1]]);
+      const lineD = pts.length >= 2 ? smoothPath(pts) : `M ${pts[0][0]} ${pts[0][1]}`;
+      if (pts.length >= 2) {
+        const areaD = `${lineD} L ${pts[pts.length-1][0]} ${PAD.t + h} L ${pts[0][0]} ${PAD.t + h} Z`;
+        svg.innerHTML += `<path d="${areaD}" fill="url(#areaGrad)"/>`;
+        svg.innerHTML += `<path d="${lineD}" fill="none" stroke="url(#lineGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)"/>`;
+      }
+      // 데이터 포인트
+      segment.forEach(([x, y, d]) => {
+        if (d.errors > 0) {
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="8" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="3.5" fill="#8B2E1F"/>`;
+        } else {
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF" stroke="#1A2942" stroke-width="2"/>`;
+        }
+      });
+    });
+
+    // ── 리셋 지점 표시 (수직 점선 + RESTART 라벨) ──
+    DATA.daily.forEach((d, i) => {
+      if (d.reset) {
+        const x = xs(i);
+        svg.innerHTML += `<line x1="${x}" x2="${x}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#8B2E1F" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>`;
+        svg.innerHTML += `
+          <g transform="translate(${x}, ${PAD.t + 8})">
+            <rect x="-32" y="-8" width="64" height="16" rx="8" fill="#8B2E1F"/>
+            <text x="0" y="3" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#FFFFFF" letter-spacing="0.1em">RESTART</text>
+          </g>`;
+      }
+    });
+
+    // ── 현재 위치 마커 + 값 라벨 ───────────────────────────
+    const lastD = DATA.daily[n - 1];
+    const lx = xs(n - 1), ly = ys(lastD.mtbiStreak);
+    svg.innerHTML += `<line x1="${lx}" x2="${lx}" y1="${ly}" y2="${PAD.t + h}" stroke="#1A2942" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"/>`;
+    svg.innerHTML += `<circle cx="${lx}" cy="${ly}" r="8" fill="#1A2942" opacity="0.15"/>`;
+    svg.innerHTML += `<circle cx="${lx}" cy="${ly}" r="5" fill="#1A2942"/>`;
+    svg.innerHTML += `<circle cx="${lx}" cy="${ly}" r="2" fill="#FFFFFF"/>`;
+    // 현재 값 박스
+    const labelW = 76;
+    const labelX = Math.min(lx + 8, W - PAD.r - labelW);
+    svg.innerHTML += `
+      <g transform="translate(${labelX}, ${ly - 14})">
+        <rect x="0" y="0" width="${labelW}" height="28" rx="14" fill="#0F1419" filter="url(#lineGlow)"/>
+        <text x="${labelW/2}" y="18" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="13" font-weight="700" fill="#FFFFFF" letter-spacing="0.04em">${fmt(lastD.mtbiStreak)}</text>
+      </g>`;
+  }
+
+  // X축 라벨 (시작·끝·중간 몇 개)
+  if (n > 0) {
+    const xTicks = n <= 8 ? [...Array(n).keys()] : [0, Math.floor(n*0.25), Math.floor(n*0.5), Math.floor(n*0.75), n - 1];
+    xTicks.forEach(i => {
+      const x = xs(i);
+      svg.innerHTML += `<text x="${x}" y="${H - PAD.b + 18}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmtDate(DATA.daily[i].date)}</text>`;
     });
   }
 
-  DATA.daily.forEach((d, i) => {
-    if (i % Math.ceil(n / 10) === 0 || i === n - 1) {
-      const x = xs(i);
-      svg.innerHTML += `<text x="${x}" y="${H - PAD.b + 16}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmtDate(d.date)}</text>`;
-    }
-  });
-
-  svg.innerHTML += `<line x1="${PAD.l}" x2="${PAD.l}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1"/>`;
-  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1"/>`;
+  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5"/>`;
 }
 
 /* ─── 차트: 에러 추이 ────────────────────── */
 function drawErrorChart() {
   const svg = $('chart-err');
   svg.innerHTML = '';
-  const W = 1200, H = 180, PAD = { l: 60, r: 30, t: 20, b: 40 };
+  const W = 1200, H = 180, PAD = { l: 60, r: 30, t: 24, b: 40 };
   const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
 
   const limit = DATA.project.errorLimit;
@@ -203,32 +439,51 @@ function drawErrorChart() {
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
   const ys = v => PAD.t + h - (v / maxY) * h;
 
+  // ── Danger zone: limit 초과 영역 빨간 음영 ─────────
+  const ly = ys(limit);
+  svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${ly - PAD.t}" fill="url(#errAreaGrad)" opacity="0.6"/>`;
+
+  // ── grid + tick ─────────────────────────────────
   for (let i = 0; i <= maxY; i++) {
     const y = ys(i);
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1"/>`;
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
     svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${i}</text>`;
   }
 
-  const ly = ys(limit);
-  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${ly}" y2="${ly}" stroke="#8B2E1F" stroke-width="1.5" stroke-dasharray="6,4"/>`;
-  svg.innerHTML += `<text x="${W - PAD.r}" y="${ly - 6}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#8B2E1F">LIMIT ${limit}</text>`;
+  // ── LIMIT 라벨 ──────────────────────────────────
+  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${ly}" y2="${ly}" stroke="#8B2E1F" stroke-width="2" stroke-dasharray="8,5"/>`;
+  svg.innerHTML += `
+    <g transform="translate(${W - PAD.r - 6}, ${ly - 9})">
+      <rect x="-72" y="-12" width="72" height="20" rx="10" fill="#8B2E1F"/>
+      <text x="-36" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.08em">LIMIT ${limit}</text>
+    </g>`;
 
   if (n > 0) {
+    // 누적 에러는 계단식이 직관적이라 step 유지하되, 영역에 그라데이션 추가
     let pathD = '';
+    let areaD = `M ${xs(0)} ${PAD.t + h}`;
     DATA.daily.forEach((d, i) => {
       const x = xs(i), y = ys(d.cumErr);
-      if (i === 0) pathD += `M ${x} ${y}`;
-      else {
+      if (i === 0) {
+        pathD += `M ${x} ${y}`;
+        areaD += ` L ${x} ${y}`;
+      } else {
         const py = ys(DATA.daily[i - 1].cumErr);
         pathD += ` L ${x} ${py} L ${x} ${y}`;
+        areaD += ` L ${x} ${py} L ${x} ${y}`;
       }
     });
-    svg.innerHTML += `<path d="${pathD}" fill="none" stroke="#8B2E1F" stroke-width="2.5"/>`;
+    areaD += ` L ${xs(n - 1)} ${PAD.t + h} Z`;
+
+    svg.innerHTML += `<path d="${areaD}" fill="url(#errAreaGrad)"/>`;
+    svg.innerHTML += `<path d="${pathD}" fill="none" stroke="url(#errLineGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#errLineGlow)"/>`;
 
     DATA.daily.forEach((d, i) => {
       if (d.errors > 0) {
         const x = xs(i), y = ys(d.cumErr);
-        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="4" fill="#8B2E1F"/>`;
+        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="9" fill="#8B2E1F" opacity="0.15"/>`;
+        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="6" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
+        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="3" fill="#8B2E1F"/>`;
       }
     });
   }
@@ -270,10 +525,10 @@ function drawDailyChart() {
     const successH = totalH - errH;
 
     if (successH > 0) {
-      svg.innerHTML += `<rect x="${x}" y="${PAD.t + h - totalH}" width="${barW}" height="${successH}" fill="#1A2942"/>`;
+      svg.innerHTML += `<rect x="${x}" y="${PAD.t + h - totalH}" width="${barW}" height="${successH}" fill="url(#lineGrad)" rx="3" ry="3"/>`;
     }
     if (errH > 0) {
-      svg.innerHTML += `<rect x="${x}" y="${PAD.t + h - errH}" width="${barW}" height="${errH}" fill="#8B2E1F"/>`;
+      svg.innerHTML += `<rect x="${x}" y="${PAD.t + h - errH}" width="${barW}" height="${errH}" fill="#8B2E1F" rx="3" ry="3"/>`;
     }
 
     svg.innerHTML += `<text x="${x + barW / 2}" y="${PAD.t + h - totalH - 6}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#0F1419">${d.total}</text>`;
@@ -291,15 +546,16 @@ function drawDailyTable() {
   const target = DATA.project.target;
   [...DATA.daily].reverse().forEach(d => {
     const tr = document.createElement('tr');
-    const pct = ((d.cumTotal / target) * 100).toFixed(1);
+    const pct = ((d.mtbiStreak / target) * 100).toFixed(1);
+    const resetTag = d.reset ? ` <span class="badge err" title="에러 한도 초과로 MTBI 재시작">RESTART</span>` : '';
     tr.innerHTML = `
       <td class="center">${d.date}</td>
       <td>${d.personnel}</td>
-      <td>${d.activity}</td>
+      <td>${d.activity}${resetTag}</td>
       <td class="num">${fmt(d.total)}</td>
       <td class="num ${d.errors > 0 ? 'err' : ''}">${d.errors}</td>
       <td class="num">${fmt(d.streak)}</td>
-      <td class="num">${fmt(d.cumTotal)}</td>
+      <td class="num">${fmt(d.mtbiStreak)}</td>
       <td class="num">${pct}%</td>
     `;
     tbody.appendChild(tr);

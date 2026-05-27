@@ -3,7 +3,8 @@
     "name":       "로봇 자동화 양산평가",
     "vendor":     "○○○ 자동화",
     "pm":         "HD",
-    "startDate":  "2026-04-15",
+    "startDate":  "2026-06-01",
+    "endDate":    "2026-09-30",
     "target":     360,
     "errorLimit": 3
   }
