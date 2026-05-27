@@ -266,10 +266,10 @@ const STOPWORDS = new Set([
 
 function extractKeywords(errors) {
   if (!errors || !errors.length) return [];
-  // 에러 1건당 어떤 필드에서 추출했는지 추적 (요약 가능)
+  // 에러 "유형" 필드에서만 추출
   const counts = new Map();   // word → { count, samples: Set<errorNo> }
   errors.forEach(e => {
-    const blob = `${e.type || ''} ${e.detail || ''} ${e.cause || ''} ${e.action || ''}`;
+    const blob = e.type || '';
     // 한글 2자 이상, 영문 3자 이상 토큰
     const tokens = blob.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9]{2,}/g) || [];
     const seen = new Set();   // 같은 에러에서 같은 단어는 1회만
@@ -323,7 +323,8 @@ function drawCumulativeChart() {
   const h = H - PAD.t - PAD.b;
 
   const target = DATA.project.target;
-  const maxY = Math.max(target * 1.15, ...DATA.daily.map(d => d.mtbiStreak)) || target;
+  // Y축 400으로 고정 (target 360 + 여유)
+  const maxY = 400;
   const n = DATA.daily.length;
 
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
@@ -334,13 +335,14 @@ function drawCumulativeChart() {
   svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${tgtY - PAD.t}" fill="url(#zoneTargetGrad)"/>`;
   svg.innerHTML += `<rect x="${PAD.l}" y="${tgtY}" width="${w}" height="${PAD.t + h - tgtY}" fill="url(#zoneSafeGrad)"/>`;
 
-  // ── Y축 grid + tick labels ─────────────────────────────────
-  const ticks = 5;
-  for (let i = 0; i <= ticks; i++) {
-    const y = PAD.t + (i / ticks) * h;
-    const val = Math.round(maxY * (1 - i / ticks));
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
-    svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmt(val)}</text>`;
+  // ── Y축 grid: minor 50 단위(옅음) + major 100 단위(진함) + 라벨 ────
+  for (let v = 0; v <= maxY; v += 50) {
+    const y = ys(v);
+    const isMajor = v % 100 === 0;
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="${isMajor ? '#D6D2C4' : '#EDE9DC'}" stroke-width="${isMajor ? 1 : 1}"/>`;
+    if (isMajor) {
+      svg.innerHTML += `<text x="${PAD.l - 10}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#3D4147">${fmt(v)}</text>`;
+    }
   }
 
   // ── TARGET 라인 ────────────────────────────────────────────
@@ -384,19 +386,6 @@ function drawCumulativeChart() {
       });
     });
 
-    // ── 리셋 지점 표시 (검정 수직 점선 + RESTART 라벨) ──
-    DATA.daily.forEach((d, i) => {
-      if (d.reset) {
-        const x = xs(i);
-        svg.innerHTML += `<line x1="${x}" x2="${x}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.55"/>`;
-        svg.innerHTML += `
-          <g transform="translate(${x}, ${PAD.t + 8})">
-            <rect x="-32" y="-8" width="64" height="16" rx="8" fill="#0F1419"/>
-            <text x="0" y="3" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#FFFFFF" letter-spacing="0.1em">RESTART</text>
-          </g>`;
-      }
-    });
-
     // ── 현재 위치 마커 + 값 라벨 ───────────────────────────
     const lastD = DATA.daily[n - 1];
     const lx = xs(n - 1), ly = ys(lastD.mtbiStreak);
@@ -434,8 +423,8 @@ function drawErrorChart() {
   const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
 
   const limit = DATA.project.errorLimit;
-  // attemptErrs 기준: 시도 안에서만 에러를 누적, 한도 초과 시 0
-  const maxY = limit + 1;
+  // Y축 5로 고정
+  const maxY = 5;
   const n = DATA.daily.length;
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
   const ys = v => PAD.t + h - (v / maxY) * h;
@@ -444,11 +433,11 @@ function drawErrorChart() {
   const ly = ys(limit);
   svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${ly - PAD.t}" fill="url(#errAreaGrad)" opacity="0.6"/>`;
 
-  // ── grid + tick ─────────────────────────────────
+  // ── grid: 1단위 진한 실선 + 라벨 ─────────────────
   for (let i = 0; i <= maxY; i++) {
     const y = ys(i);
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
-    svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${i}</text>`;
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#D6D2C4" stroke-width="1"/>`;
+    svg.innerHTML += `<text x="${PAD.l - 10}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#3D4147">${i}</text>`;
   }
 
   // ── LIMIT 라벨 ──────────────────────────────────
@@ -502,18 +491,6 @@ function drawErrorChart() {
       });
     });
 
-    // 리셋 지점 표시 (검정)
-    DATA.daily.forEach((d, i) => {
-      if (d.reset) {
-        const x = xs(i);
-        svg.innerHTML += `<line x1="${x}" x2="${x}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.55"/>`;
-        svg.innerHTML += `
-          <g transform="translate(${x}, ${PAD.t + 8})">
-            <rect x="-32" y="-8" width="64" height="16" rx="8" fill="#0F1419"/>
-            <text x="0" y="3" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#FFFFFF" letter-spacing="0.1em">RESTART</text>
-          </g>`;
-      }
-    });
   }
 
   DATA.daily.forEach((d, i) => {
