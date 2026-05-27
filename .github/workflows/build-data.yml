@@ -1,0 +1,49 @@
+name: Build dashboard data
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/raw/**.xlsx"
+      - "scripts/build_dashboard_json.py"
+      - "scripts/requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Convert xlsx → dashboard.json
+        run: python scripts/build_dashboard_json.py
+
+      - name: Commit regenerated dashboard.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet data/dashboard.json; then
+            echo "변경사항 없음, 커밋 생략"
+            exit 0
+          fi
+          git add data/dashboard.json
+          git commit -m "chore(data): 업체 xlsx 반영 — auto-generated"
+          git push

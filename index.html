@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로봇 자동화 양산평가 — 사내 관리 대시보드</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ========== HEADER ========== -->
+  <header class="header">
+    <div>
+      <div class="brand-mark">Robot Automation · Mass Production Eval</div>
+      <h1 class="brand-title">로봇 자동화 양산평가 <em>관리 대시보드</em></h1>
+      <div class="brand-sub">
+        <span><span class="lbl">PROJECT</span><span class="val" id="m-project">—</span></span>
+        <span><span class="lbl">VENDOR</span><span class="val" id="m-vendor">—</span></span>
+        <span><span class="lbl">PM</span><span class="val" id="m-pm">—</span></span>
+        <span><span class="lbl">START</span><span class="val" id="m-start">—</span></span>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="stamp">LAST UPDATED <span class="now" id="m-now">—</span></div>
+      <div class="actions">
+        <button class="btn ghost" id="btn-load">데이터 갱신</button>
+        <button class="btn" onclick="window.print()">PDF / 인쇄</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== TABS ========== -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="exec">
+      <span>임원 보고</span>
+      <span class="tag">EXEC</span>
+    </button>
+    <button class="tab" data-tab="ops">
+      <span>실무 관리</span>
+      <span class="tag">OPS</span>
+    </button>
+  </nav>
+
+  <!-- ========== EXEC PANEL ========== -->
+  <section class="panel active" id="panel-exec">
+
+    <!-- 메인 진행률 + 에러 카드 -->
+    <div class="exec-grid">
+      <div class="hero">
+        <div class="hero-label">MTBI Progress</div>
+        <div class="hero-title">누적 평가 진행률</div>
+        <div class="hero-big">
+          <span class="num" id="hero-num">0</span>
+          <span class="denom">/ <span id="hero-denom">360</span></span>
+          <span class="unit">사이클</span>
+        </div>
+        <div class="hero-progress">
+          <div class="hero-progress-fill" id="hero-fill" style="width: 0%"></div>
+        </div>
+        <div class="hero-progress-meta">
+          <span>0</span>
+          <span class="pct" id="hero-pct">0.0%</span>
+          <span id="hero-goal">360</span>
+        </div>
+      </div>
+
+      <div class="error-card" id="error-card">
+        <div class="lbl">Error Budget</div>
+        <div class="ttl">에러 누적 / 한도</div>
+        <div class="num-row">
+          <span class="num" id="err-num">0</span>
+          <span class="of">of <span id="err-limit">3</span></span>
+        </div>
+        <div class="blocks" id="err-blocks"></div>
+        <div class="desc" id="err-desc">한도 내 안정 운영 중.</div>
+      </div>
+    </div>
+
+    <!-- KPI 4종 -->
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-lbl">최장 연속 성공</div>
+        <div class="kpi-num"><span id="kpi-streak">0</span><span class="unit">회</span></div>
+        <div class="kpi-sub" id="kpi-streak-sub">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">평가 진행 일수</div>
+        <div class="kpi-num"><span id="kpi-days">0</span><span class="unit">일</span></div>
+        <div class="kpi-sub" id="kpi-days-sub">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">일평균 평가</div>
+        <div class="kpi-num"><span id="kpi-avg">0</span><span class="unit">회/일</span></div>
+        <div class="kpi-sub" id="kpi-avg-sub">현재 추세 기준</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">목표 도달 예상</div>
+        <div class="kpi-num"><span id="kpi-eta">—</span></div>
+        <div class="kpi-sub" id="kpi-eta-sub">일평균 추세 기준</div>
+      </div>
+    </div>
+
+    <!-- Summary 텍스트 -->
+    <div class="summary">
+      <div class="summary-lbl">Status Summary</div>
+      <div class="summary-body" id="summary-text">데이터를 불러오는 중입니다.</div>
+    </div>
+
+    <!-- 메인 차트: 누적 평가 추이 -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h3>누적 평가 횟수 추이</h3>
+          <div class="sub">Cumulative Cycles vs Target</div>
+        </div>
+        <div class="chart-legend">
+          <span><span class="dot"></span>누적 평가</span>
+          <span><span class="dot dashed"></span>목표선 (MTBI)</span>
+        </div>
+      </div>
+      <svg id="chart-cum" width="100%" height="280" viewBox="0 0 1200 280" preserveAspectRatio="none"></svg>
+    </div>
+
+    <!-- 에러 추이 -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h3>누적 에러 추이</h3>
+          <div class="sub">Cumulative Errors vs Budget</div>
+        </div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background: var(--rust)"></span>누적 에러</span>
+          <span><span class="dot dashed"></span>허용 한도</span>
+        </div>
+      </div>
+      <svg id="chart-err" width="100%" height="180" viewBox="0 0 1200 180" preserveAspectRatio="none"></svg>
+    </div>
+
+  </section>
+
+  <!-- ========== OPS PANEL ========== -->
+  <section class="panel" id="panel-ops">
+
+    <!-- 일일 평가 막대 -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h3>일일 평가 횟수</h3>
+          <div class="sub">Daily Cycle Count</div>
+        </div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background: var(--navy)"></span>성공</span>
+          <span><span class="dot" style="background: var(--rust)"></span>에러</span>
+        </div>
+      </div>
+      <svg id="chart-daily" width="100%" height="240" viewBox="0 0 1200 240" preserveAspectRatio="none"></svg>
+    </div>
+
+    <!-- 일자별 상세 테이블 -->
+    <div class="section-title">일자별 평가 기록</div>
+    <div class="section-sub">Daily Evaluation Log</div>
+    <table class="data" id="tbl-daily">
+      <thead>
+        <tr>
+          <th style="width: 100px">평가일</th>
+          <th>입실 인원</th>
+          <th>주 평가 내용</th>
+          <th style="width: 60px">평가</th>
+          <th style="width: 60px">에러</th>
+          <th style="width: 80px">연속</th>
+          <th style="width: 80px">누적</th>
+          <th style="width: 80px">진행률</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- 에러 상세 테이블 -->
+    <div class="section-title">에러 상세 로그</div>
+    <div class="section-sub">Incident Details</div>
+    <table class="data" id="tbl-err">
+      <thead>
+        <tr>
+          <th style="width: 50px">No.</th>
+          <th style="width: 100px">발생일</th>
+          <th style="width: 60px">시각</th>
+          <th style="width: 60px">회차</th>
+          <th style="width: 90px">코드</th>
+          <th>유형 / 상세</th>
+          <th>원인 / 조치</th>
+          <th style="width: 80px">담당</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+  </section>
+
+  <footer class="footer">
+    <div>ROBOT AUTOMATION · INTERNAL USE ONLY</div>
+    <div>v1.0 · Mass Production Evaluation</div>
+  </footer>
+
+</div>
+
+<!-- ========== DATA LOAD MODAL ========== -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>데이터 갱신</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>정식 갱신 방법</strong>: 업체에서 받은 엑셀(.xlsx)을 GitHub 저장소의 <code>data/raw/</code> 폴더에 업로드하면 GitHub Actions가 자동으로 변환합니다. (1~2분 소요)</p>
+      <p><strong>임시 미리보기</strong>: 아래 영역에 데이터를 붙여넣으면 현재 브라우저 세션에서만 적용됩니다. 새로고침 시 사라지며 GitHub 데이터에는 반영되지 않습니다.</p>
+      <p>형식 (탭 또는 콤마 구분): <code>평가일 ⇥ 입실인원 ⇥ 주 평가내용 ⇥ 일일평가 ⇥ 일일에러 ⇥ 연속성공 ⇥ 비고</code></p>
+      <textarea id="paste-area" placeholder="예시:&#10;2026-05-23	홍길동,김철수	JOB 생성-픽업-적재 사이클	85	0	85	정상&#10;..."></textarea>
+      <p style="margin-top:14px"><strong>또는</strong> 에러 로그 데이터 (헤더 제외)도 같은 방식으로 추가 갱신할 수 있습니다.</p>
+      <textarea id="paste-err" placeholder="에러 로그 예시:&#10;1	2026-05-25	14:32	165	ERR-001	비전인식오류	상세	원인	조치	정상복귀	담당자"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeModal()">취소</button>
+      <button class="btn" onclick="applyPaste()">적용</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
