@@ -157,10 +157,6 @@
             <div class="lbl">일평균 에러</div>
             <div class="val"><span id="err-avg">0.0</span><span class="u">건/일</span></div>
           </div>
-          <div class="err-substat">
-            <div class="lbl">전체 누적 에러</div>
-            <div class="val"><span id="err-total">0</span><span class="u">건</span></div>
-          </div>
         </div>
         <div class="desc" id="err-desc">한도 내 안정 운영 중.</div>
       </div>
@@ -267,12 +263,12 @@
       <div class="chart-card">
         <div class="chart-header">
           <div>
-            <h3>누적 에러 추이</h3>
-            <div class="sub">Cumulative Errors vs Budget</div>
+            <h3>시도 내 에러 추이</h3>
+            <div class="sub">Errors in Current MTBI Attempt · 한도 초과 시 0으로 리셋</div>
           </div>
           <div class="chart-legend">
-            <span><span class="dot" style="background: var(--rust)"></span>누적 에러</span>
-            <span><span class="dot dashed"></span>허용 한도</span>
+            <span><span class="dot" style="background: var(--rust)"></span>에러</span>
+            <span><span class="dot dashed"></span>한도</span>
           </div>
         </div>
         <svg id="chart-err" width="100%" height="180" viewBox="0 0 1200 180" preserveAspectRatio="none"></svg>
@@ -289,6 +285,21 @@
           <div class="keyword-empty">에러 데이터가 쌓이면 키워드가 표시됩니다.</div>
         </div>
       </div>
+    </div>
+
+    <!-- 일일 에러 발생 추이 (시스템 안정화 지표) -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h3>일일 에러 발생 추이</h3>
+          <div class="sub">Daily Error Count · 시간 경과에 따른 안정화 지표</div>
+        </div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background: var(--rust)"></span>일일 에러</span>
+          <span><span class="dot" style="background: var(--mustard); width:14px; height:3px;"></span>7일 이동평균</span>
+        </div>
+      </div>
+      <svg id="chart-daily-err" width="100%" height="220" viewBox="0 0 1200 220" preserveAspectRatio="none"></svg>
     </div>
 
   </section>

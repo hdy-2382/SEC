@@ -182,10 +182,9 @@ function render() {
     blocks.appendChild(b);
   }
 
-  // 일평균 에러 + 전체 누적
+  // 일평균 에러
   const avgErrPerDay = DATA.daily.length ? totalErrs / DATA.daily.length : 0;
   $('err-avg').textContent = avgErrPerDay.toFixed(2);
-  $('err-total').textContent = fmt(totalErrs);
 
   $('err-desc').textContent = currentAttemptErrs >= errLimit
     ? `현재 시도 에러 한도 도달 — 1건 추가 시 MTBI 재시작.`
@@ -248,6 +247,7 @@ function render() {
 
   drawCumulativeChart();
   drawErrorChart();
+  drawDailyErrorTrend();
   drawDailyChart();
   drawKeywordTop5();
   drawDailyTable();
@@ -384,14 +384,14 @@ function drawCumulativeChart() {
       });
     });
 
-    // ── 리셋 지점 표시 (수직 점선 + RESTART 라벨) ──
+    // ── 리셋 지점 표시 (검정 수직 점선 + RESTART 라벨) ──
     DATA.daily.forEach((d, i) => {
       if (d.reset) {
         const x = xs(i);
-        svg.innerHTML += `<line x1="${x}" x2="${x}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#8B2E1F" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>`;
+        svg.innerHTML += `<line x1="${x}" x2="${x}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.55"/>`;
         svg.innerHTML += `
           <g transform="translate(${x}, ${PAD.t + 8})">
-            <rect x="-32" y="-8" width="64" height="16" rx="8" fill="#8B2E1F"/>
+            <rect x="-32" y="-8" width="64" height="16" rx="8" fill="#0F1419"/>
             <text x="0" y="3" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#FFFFFF" letter-spacing="0.1em">RESTART</text>
           </g>`;
       }
@@ -426,7 +426,7 @@ function drawCumulativeChart() {
   svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5"/>`;
 }
 
-/* ─── 차트: 에러 추이 ────────────────────── */
+/* ─── 차트: 시도 내 에러 추이 (한도 초과 시 0으로 리셋) ─── */
 function drawErrorChart() {
   const svg = $('chart-err');
   svg.innerHTML = '';
@@ -434,7 +434,8 @@ function drawErrorChart() {
   const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
 
   const limit = DATA.project.errorLimit;
-  const maxY = Math.max(limit + 1, ...DATA.daily.map(d => d.cumErr));
+  // attemptErrs 기준: 시도 안에서만 에러를 누적, 한도 초과 시 0
+  const maxY = limit + 1;
   const n = DATA.daily.length;
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
   const ys = v => PAD.t + h - (v / maxY) * h;
@@ -459,31 +460,58 @@ function drawErrorChart() {
     </g>`;
 
   if (n > 0) {
-    // 누적 에러는 계단식이 직관적이라 step 유지하되, 영역에 그라데이션 추가
-    let pathD = '';
-    let areaD = `M ${xs(0)} ${PAD.t + h}`;
+    // 시도별 segment 분리 (reset 지점에서 라인 끊기)
+    const segments = [];
+    let seg = [];
     DATA.daily.forEach((d, i) => {
-      const x = xs(i), y = ys(d.cumErr);
-      if (i === 0) {
-        pathD += `M ${x} ${y}`;
-        areaD += ` L ${x} ${y}`;
-      } else {
-        const py = ys(DATA.daily[i - 1].cumErr);
-        pathD += ` L ${x} ${py} L ${x} ${y}`;
-        areaD += ` L ${x} ${py} L ${x} ${y}`;
+      if (d.reset && seg.length > 0) {
+        segments.push(seg);
+        seg = [];
       }
+      seg.push([xs(i), ys(d.attemptErrs), d, i]);
     });
-    areaD += ` L ${xs(n - 1)} ${PAD.t + h} Z`;
+    if (seg.length > 0) segments.push(seg);
 
-    svg.innerHTML += `<path d="${areaD}" fill="url(#errAreaGrad)"/>`;
-    svg.innerHTML += `<path d="${pathD}" fill="none" stroke="url(#errLineGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#errLineGlow)"/>`;
+    segments.forEach(segment => {
+      if (segment.length < 1) return;
+      // 계단식(step) path — 에러는 정수 누적이라 step이 더 직관적
+      let pathD = '';
+      let areaD = '';
+      segment.forEach(([x, y], k) => {
+        if (k === 0) {
+          pathD += `M ${x} ${y}`;
+          areaD = `M ${x} ${PAD.t + h} L ${x} ${y}`;
+        } else {
+          const py = segment[k - 1][1];
+          pathD += ` L ${x} ${py} L ${x} ${y}`;
+          areaD += ` L ${x} ${py} L ${x} ${y}`;
+        }
+      });
+      areaD += ` L ${segment[segment.length - 1][0]} ${PAD.t + h} Z`;
 
+      svg.innerHTML += `<path d="${areaD}" fill="url(#errAreaGrad)"/>`;
+      svg.innerHTML += `<path d="${pathD}" fill="none" stroke="url(#errLineGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#errLineGlow)"/>`;
+
+      // 에러 발생 점 표시 (시도 내)
+      segment.forEach(([x, y, d]) => {
+        if (d.errors > 0) {
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="9" fill="#8B2E1F" opacity="0.15"/>`;
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="6" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="3" fill="#8B2E1F"/>`;
+        }
+      });
+    });
+
+    // 리셋 지점 표시 (검정)
     DATA.daily.forEach((d, i) => {
-      if (d.errors > 0) {
-        const x = xs(i), y = ys(d.cumErr);
-        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="9" fill="#8B2E1F" opacity="0.15"/>`;
-        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="6" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
-        svg.innerHTML += `<circle cx="${x}" cy="${y}" r="3" fill="#8B2E1F"/>`;
+      if (d.reset) {
+        const x = xs(i);
+        svg.innerHTML += `<line x1="${x}" x2="${x}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.55"/>`;
+        svg.innerHTML += `
+          <g transform="translate(${x}, ${PAD.t + 8})">
+            <rect x="-32" y="-8" width="64" height="16" rx="8" fill="#0F1419"/>
+            <text x="0" y="3" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#FFFFFF" letter-spacing="0.1em">RESTART</text>
+          </g>`;
       }
     });
   }
@@ -497,6 +525,85 @@ function drawErrorChart() {
 
   svg.innerHTML += `<line x1="${PAD.l}" x2="${PAD.l}" y1="${PAD.t}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1"/>`;
   svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1"/>`;
+}
+
+/* ─── 차트: 일일 에러 발생 추이 (안정화 지표) ──── */
+function drawDailyErrorTrend() {
+  const svg = $('chart-daily-err');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const W = 1200, H = 220, PAD = { l: 60, r: 30, t: 24, b: 40 };
+  const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
+
+  const n = DATA.daily.length;
+  if (n === 0) return;
+
+  const errors = DATA.daily.map(d => d.errors || 0);
+  const maxY = Math.max(...errors, 3);
+  const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
+  const ys = v => PAD.t + h - (v / maxY) * h;
+
+  // 7일 이동평균
+  const WINDOW = 7;
+  const ma = errors.map((_, i) => {
+    const start = Math.max(0, i - WINDOW + 1);
+    const slice = errors.slice(start, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / slice.length;
+  });
+
+  // Y축 grid + tick
+  const ticks = Math.min(maxY, 5);
+  for (let i = 0; i <= ticks; i++) {
+    const y = PAD.t + (i / ticks) * h;
+    const val = (maxY * (1 - i / ticks)).toFixed(maxY >= 5 ? 0 : 1);
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
+    svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${val}</text>`;
+  }
+
+  // 일일 에러 막대
+  const barW = Math.max(6, Math.min(28, (w / n) * 0.6));
+  DATA.daily.forEach((d, i) => {
+    const e = d.errors || 0;
+    if (e <= 0) {
+      // 0 에러는 아주 옅은 막대 (시각적으로 "이 날 에러 없음"을 표시)
+      const baseY = ys(0);
+      svg.innerHTML += `<rect x="${xs(i) - barW/2}" y="${baseY - 4}" width="${barW}" height="4" rx="2" fill="#E8E4D8"/>`;
+      return;
+    }
+    const x = xs(i) - barW / 2;
+    const y = ys(e);
+    const barH = (PAD.t + h) - y;
+    svg.innerHTML += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="url(#errLineGrad)"/>`;
+    // 값 라벨
+    svg.innerHTML += `<text x="${xs(i)}" y="${y - 6}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#8B2E1F">${e}</text>`;
+  });
+
+  // 7일 이동평균 추세선 (smooth)
+  if (n >= 2) {
+    const pts = ma.map((v, i) => [xs(i), ys(v)]);
+    const lineD = smoothPath(pts);
+    svg.innerHTML += `<path d="${lineD}" fill="none" stroke="#B88A2B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0" opacity="0.9" filter="url(#lineGlow)"/>`;
+    // 마지막 값에 점
+    const lastIdx = pts.length - 1;
+    svg.innerHTML += `<circle cx="${pts[lastIdx][0]}" cy="${pts[lastIdx][1]}" r="4" fill="#FFFFFF" stroke="#B88A2B" stroke-width="2.2"/>`;
+    // 현재 이동평균 값 라벨
+    const labelX = Math.min(pts[lastIdx][0] + 8, W - PAD.r - 80);
+    svg.innerHTML += `
+      <g transform="translate(${labelX}, ${pts[lastIdx][1] - 14})">
+        <rect x="0" y="0" width="80" height="22" rx="11" fill="#B88A2B"/>
+        <text x="40" y="15" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF">MA${WINDOW} ${ma[lastIdx].toFixed(2)}</text>
+      </g>`;
+  }
+
+  // X축 라벨
+  const xTicks = n <= 10 ? [...Array(n).keys()] : [0, Math.floor(n*0.25), Math.floor(n*0.5), Math.floor(n*0.75), n - 1];
+  xTicks.forEach(i => {
+    const x = xs(i);
+    svg.innerHTML += `<text x="${x}" y="${H - PAD.b + 18}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmtDate(DATA.daily[i].date)}</text>`;
+  });
+
+  // X축 라인
+  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5"/>`;
 }
 
 /* ─── 차트: 일일 평가 막대 ──────────────── */
