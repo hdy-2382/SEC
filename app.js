@@ -97,11 +97,15 @@ function smoothPath(pts) {
 /* ─── 메인 렌더링 ──────────────────────── */
 function render() {
   // 메타
-  $('m-project').textContent = DATA.project.name;
-  $('m-vendor').textContent  = DATA.project.vendor;
-  $('m-pm').textContent      = DATA.project.pm;
-  $('m-start').textContent   = DATA.project.startDate;
-  $('m-now').textContent     = new Date().toISOString().slice(0, 10);
+  $('m-location').textContent   = DATA.project.name;
+  $('m-department').textContent = DATA.project.department;
+  $('m-team').textContent       = DATA.project.team;
+  $('m-start').textContent      = DATA.project.startDate;
+  $('m-end').textContent        = DATA.project.endDate || '—';
+  // LAST UPDATED — 데이터 파일이 마지막으로 빌드된 시각(UTC ISO)을 표시.
+  // 새로고침 시각이 아니라 데이터 갱신 시점이라야 사용자가 "갱신됐는지" 정확히 판단 가능.
+  const builtAt = DATA._meta && DATA._meta.generatedAt;
+  $('m-now').textContent = builtAt ? builtAt.replace('T', ' ').replace('Z', ' UTC') : '—';
 
   // 정렬
   DATA.daily.sort((a, b) => a.date.localeCompare(b.date));
@@ -149,13 +153,17 @@ function render() {
   const pct = Math.min(currentMtbi / target, 1);
 
   // ── 평가 기간 (startDate ~ endDate) 계산 ─────────────
+  // 기준일자 = max(오늘, 데이터의 마지막 평가일).
+  // 시스템 날짜가 평가 기간 이전이거나 데이터가 미래일자로 들어와도 진행률이 반영되도록.
   const ONE_DAY = 86400000;
   const startD  = new Date(DATA.project.startDate);
   const endD    = DATA.project.endDate ? new Date(DATA.project.endDate) : null;
   const today   = new Date(new Date().toISOString().slice(0, 10));   // 시간 제거
+  const lastDataD = lastDay ? new Date(lastDay.date) : null;
+  const refD = (lastDataD && lastDataD > today) ? lastDataD : today;
   const totalPeriodDays = endD ? Math.round((endD - startD) / ONE_DAY) + 1 : null;
-  const elapsedDays    = Math.max(0, Math.round((today - startD) / ONE_DAY) + 1);
-  const remainingDays  = endD ? Math.max(0, Math.round((endD - today) / ONE_DAY)) : null;
+  const elapsedDays    = Math.max(0, Math.round((refD - startD) / ONE_DAY) + 1);
+  const remainingDays  = endD ? Math.max(0, Math.round((endD - refD) / ONE_DAY)) : null;
 
   // Hero — 도넛 + 통계 (MTBI 연속 성공 기준)
   $('hero-num').textContent = fmt(currentMtbi);
@@ -194,11 +202,6 @@ function render() {
 
   // KPI ① 최장 MTBI 연속 (역대 최고치)
   $('kpi-streak').textContent = fmt(maxMtbiStreak);
-  $('kpi-streak-sub').textContent = currentMtbi === maxMtbiStreak && !achieved
-    ? '현재 시도가 역대 최고'
-    : currentMtbi < maxMtbiStreak
-      ? `현재 ${fmt(currentMtbi)}회 (재시작 후)`
-      : 'MTBI 목표 도달';
   // 막대: 최장 MTBI를 목표 대비로 표현
   const streakBarPct = Math.min(maxMtbiStreak / target, 1) * 100;
   $('kpi-streak-bar').setAttribute('width', streakBarPct);
@@ -231,19 +234,44 @@ function render() {
   const errUsagePct = Math.min(currentAttemptErrs / errLimit, 1) * 100;
   $('kpi-attempt-bar').setAttribute('width', errUsagePct);
 
-  // Summary
-  const summaryParts = [];
-  summaryParts.push(`평가 시작 후 <strong>${DATA.daily.length}일</strong> 경과 · 누적 <strong>${fmt(totalCycles)}회</strong> 진행.`);
-  if (achieved) {
-    summaryParts.push(`<span class="ok">MTBI 목표(${fmt(target)}회) 달성</span> — ${mtbiAttempt}차 시도 성공.`);
-  } else {
-    summaryParts.push(`현재 ${mtbiAttempt}차 MTBI 시도 — <strong>${fmt(currentMtbi)} / ${fmt(target)}</strong> (${(pct*100).toFixed(1)}%).`);
+  // Summary — 2줄. 진행/시간(L1) + 시도/리스크(L2)
+  const remStr = endD ? `${fmt(remainingDays)}일` : '—';
+  $('summary-text').innerHTML =
+    `평가 <strong>${fmt(elapsedDays)}일차</strong> · ` +
+    `잔여 <strong>${remStr}</strong> · ` +
+    `MTBI <strong>${fmt(currentMtbi)} / ${fmt(target)}</strong>회 (${(pct*100).toFixed(1)}%)` +
+    `<br>` +
+    `현재 <strong>${mtbiAttempt}차 시도</strong> · ` +
+    `시도 내 에러 <strong>${currentAttemptErrs} / ${errLimit}</strong> · ` +
+    `누적 에러 <strong>${fmt(totalErrs)}건</strong>`;
+
+  // ── 메트릭 바: MTBF / 무에러 연속 / 목표 달성 예상일 ─────
+  const errorDays = DATA.daily.filter(d => d.errors > 0);
+  // MTBF — 평균 에러 간격 (에러일 사이 일수)
+  let mtbfStr = '—';
+  if (errorDays.length >= 2) {
+    const intervals = [];
+    for (let i = 1; i < errorDays.length; i++) {
+      const a = new Date(errorDays[i - 1].date);
+      const b = new Date(errorDays[i].date);
+      intervals.push(Math.round((b - a) / ONE_DAY));
+    }
+    const avg = intervals.reduce((s, v) => s + v, 0) / intervals.length;
+    mtbfStr = avg.toFixed(1);
+  } else if (errorDays.length === 1) {
+    mtbfStr = '—';
   }
-  if (currentAttemptErrs === 0) summaryParts.push(`<span class="ok">시도 내 에러 0건</span>.`);
-  else if (currentAttemptErrs < errLimit) summaryParts.push(`시도 내 에러 <strong>${currentAttemptErrs}건</strong> · 한도까지 ${errLimit - currentAttemptErrs}건 여유.`);
-  else summaryParts.push(`<span class="warn">시도 내 에러 한도 도달</span> — 1건 추가 시 재시작.`);
-  summaryParts.push(`역대 최장 MTBI <strong>${fmt(maxMtbiStreak)}회</strong>.`);
-  $('summary-text').innerHTML = summaryParts.join(' ');
+  $('m-mtbf').textContent = mtbfStr;
+
+  // 무에러 연속일 — 마지막 에러일로부터 refD 까지
+  let noErrDays = 0;
+  if (errorDays.length === 0) {
+    noErrDays = elapsedDays;
+  } else {
+    const lastErrD = new Date(errorDays[errorDays.length - 1].date);
+    noErrDays = Math.max(0, Math.round((refD - lastErrD) / ONE_DAY));
+  }
+  $('m-noerr').textContent = fmt(noErrDays);
 
   drawCumulativeChart();
   drawErrorChart();
@@ -254,35 +282,20 @@ function render() {
   drawErrorTable();
 }
 
-/* ─── 알람 키워드 Top 5 ─────────────────── */
-// 한글 불용어 (의미 없는 조사·일반어). 필요시 도메인 키워드에 맞춰 확장.
-const STOPWORDS = new Set([
-  '오류','에러','문제','발생','확인','시험','검토','조정','조치','보정',
-  '추정','등의','등을','등은','또는','그리고','하지만','그러나',
-  '대상','이슈','이후','진행','완료','정상','복귀','상황','상태','관련',
-  '있음','없음','부분','경우','전체','일부','이번','당일','금일','금주',
-  '시스템','로봇'
-]);
-
+/* ─── 알람 키워드 Top 5 ───────────────────
+   에러의 "유형" 필드 전체를 하나의 카테고리로 보고 동일 문자열끼리 빈도 집계.
+   예: "비전 인식 오류", "그리퍼 그립 실패" 가 각각 하나의 키. */
 function extractKeywords(errors) {
   if (!errors || !errors.length) return [];
-  // 에러 "유형" 필드에서만 추출
-  const counts = new Map();   // word → { count, samples: Set<errorNo> }
+  const counts = new Map();   // type → { count, samples: Set<errorNo> }
   errors.forEach(e => {
-    const blob = e.type || '';
-    // 한글 2자 이상, 영문 3자 이상 토큰
-    const tokens = blob.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9]{2,}/g) || [];
-    const seen = new Set();   // 같은 에러에서 같은 단어는 1회만
-    tokens.forEach(t => {
-      const k = t.toLowerCase();
-      if (STOPWORDS.has(k) || STOPWORDS.has(t)) return;
-      if (seen.has(k)) return;
-      seen.add(k);
-      if (!counts.has(t)) counts.set(t, { count: 0, samples: new Set() });
-      const entry = counts.get(t);
-      entry.count += 1;
-      entry.samples.add(e.no);
-    });
+    // 공백 정규화 (다중 공백 → 단일) 후 trim. 비어있으면 스킵.
+    const type = (e.type || '').replace(/\s+/g, ' ').trim();
+    if (!type) return;
+    if (!counts.has(type)) counts.set(type, { count: 0, samples: new Set() });
+    const entry = counts.get(type);
+    entry.count += 1;
+    entry.samples.add(e.no);
   });
   return [...counts.entries()]
     .map(([word, v]) => ({ word, count: v.count, samples: [...v.samples] }))
@@ -346,10 +359,10 @@ function drawCumulativeChart() {
   }
 
   // ── TARGET 라인 ────────────────────────────────────────────
-  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${tgtY}" y2="${tgtY}" stroke="#B88A2B" stroke-width="2" stroke-dasharray="8,5" opacity="0.85"/>`;
+  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${tgtY}" y2="${tgtY}" stroke="#2E89D6" stroke-width="2" stroke-dasharray="8,5" opacity="0.85"/>`;
   svg.innerHTML += `
     <g transform="translate(${PAD.l + 6}, ${tgtY - 9})">
-      <rect x="0" y="-12" width="98" height="20" rx="10" fill="#B88A2B"/>
+      <rect x="0" y="-12" width="98" height="20" rx="10" fill="#2E89D6"/>
       <text x="49" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.08em">TARGET ${fmt(target)}</text>
     </g>`;
 
@@ -376,12 +389,15 @@ function drawCumulativeChart() {
         svg.innerHTML += `<path d="${lineD}" fill="none" stroke="url(#lineGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)"/>`;
       }
       // 데이터 포인트
+      // - reset 점: 일반 흰 원만 표시 (빨간 표시 생략)
+      // - 그 외 에러 있는 날: 빨간 강조 원
+      // - 정상 날: 작은 흰 원
       segment.forEach(([x, y, d]) => {
-        if (d.errors > 0) {
+        if (d.reset || d.errors === 0) {
+          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF" stroke="#1A2942" stroke-width="2"/>`;
+        } else {
           svg.innerHTML += `<circle cx="${x}" cy="${y}" r="8" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
           svg.innerHTML += `<circle cx="${x}" cy="${y}" r="3.5" fill="#8B2E1F"/>`;
-        } else {
-          svg.innerHTML += `<circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF" stroke="#1A2942" stroke-width="2"/>`;
         }
       });
     });
@@ -414,6 +430,7 @@ function drawCumulativeChart() {
 
   svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5"/>`;
 }
+
 
 /* ─── 차트: 시도 내 에러 추이 (한도 초과 시 0으로 리셋) ─── */
 function drawErrorChart() {
@@ -559,15 +576,15 @@ function drawDailyErrorTrend() {
   if (n >= 2) {
     const pts = ma.map((v, i) => [xs(i), ys(v)]);
     const lineD = smoothPath(pts);
-    svg.innerHTML += `<path d="${lineD}" fill="none" stroke="#B88A2B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0" opacity="0.9" filter="url(#lineGlow)"/>`;
+    svg.innerHTML += `<path d="${lineD}" fill="none" stroke="#2E89D6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0" opacity="0.9" filter="url(#lineGlow)"/>`;
     // 마지막 값에 점
     const lastIdx = pts.length - 1;
-    svg.innerHTML += `<circle cx="${pts[lastIdx][0]}" cy="${pts[lastIdx][1]}" r="4" fill="#FFFFFF" stroke="#B88A2B" stroke-width="2.2"/>`;
+    svg.innerHTML += `<circle cx="${pts[lastIdx][0]}" cy="${pts[lastIdx][1]}" r="4" fill="#FFFFFF" stroke="#2E89D6" stroke-width="2.2"/>`;
     // 현재 이동평균 값 라벨
     const labelX = Math.min(pts[lastIdx][0] + 8, W - PAD.r - 80);
     svg.innerHTML += `
       <g transform="translate(${labelX}, ${pts[lastIdx][1] - 14})">
-        <rect x="0" y="0" width="80" height="22" rx="11" fill="#B88A2B"/>
+        <rect x="0" y="0" width="80" height="22" rx="11" fill="#2E89D6"/>
         <text x="40" y="15" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF">MA${WINDOW} ${ma[lastIdx].toFixed(2)}</text>
       </g>`;
   }

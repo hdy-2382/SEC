@@ -1,8 +1,8 @@
 {
   "project": {
-    "name":       "로봇 자동화 양산평가",
-    "vendor":     "○○○ 자동화",
-    "pm":         "HD",
+    "name":       "S4 증축동",
+    "department": "A-INFRA 기술팀",
+    "team":       "양희두, 김현일",
     "startDate":  "2026-06-01",
     "endDate":    "2026-09-30",
     "target":     360,

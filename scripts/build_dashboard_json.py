@@ -96,6 +96,27 @@ def _build_column_map(header_row, aliases: dict[str, list[str]]) -> dict[str, in
     return col_map
 
 
+_DATE_TEXT_RE = re.compile(
+    r"^\s*(\d{2,4})[\s\.\-/년]+(\d{1,2})[\s\.\-/월]+(\d{1,2})\s*일?\s*$"
+)
+
+
+def _try_normalize_date(s: str) -> str:
+    """텍스트로 들어온 날짜를 YYYY-MM-DD 로 정규화. 매칭 안 되면 원문 반환.
+    지원 포맷: 2026-06-01, 2026/06/01, 2026.6.1, 26-6-1, 2026년 6월 1일 등.
+    """
+    m = _DATE_TEXT_RE.match(s)
+    if not m:
+        return s
+    y, mo, d = m.group(1), m.group(2), m.group(3)
+    if len(y) == 2:
+        y = f"20{y}"
+    try:
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+    except ValueError:
+        return s
+
+
 def _cell_to_str(v) -> str:
     if v is None:
         return ""
@@ -105,7 +126,9 @@ def _cell_to_str(v) -> str:
         return v.strftime("%Y-%m-%d")
     if isinstance(v, time):
         return v.strftime("%H:%M")
-    return str(v).strip()
+    s = str(v).strip()
+    # 날짜처럼 보이면 정규화 시도 (다양한 구분자/생략 연도 등 대응)
+    return _try_normalize_date(s)
 
 
 def _cell_to_int(v) -> int:
@@ -186,6 +209,13 @@ def _pick_latest_xlsx() -> Path:
     )
     if not xlsxs:
         raise SystemExit(f"data/raw/ 폴더에 .xlsx 파일이 없습니다. ({RAW_DIR})")
+    if len(xlsxs) > 1:
+        print(f"[build] ⚠ data/raw/ 에 xlsx 파일이 {len(xlsxs)}개 있습니다. 최신(mtime) 파일을 사용합니다:")
+        for p in xlsxs:
+            ts = datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            marker = "→" if p == xlsxs[0] else " "
+            print(f"        {marker} {p.name}  (mtime {ts})")
+        print(f"        다른 파일을 쓰려면 불필요한 파일을 제거하거나 사용할 파일을 다시 저장(터치)하세요.")
     return xlsxs[0]
 
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>로봇 자동화 양산평가 — 사내 관리 대시보드</title>
+<title>Chemical Drum 체결/반송 자동화 양산평가 — 사내 관리 대시보드</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,16 +12,16 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <linearGradient id="sparkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"   stop-color="#B88A2B" stop-opacity="0.45"/>
-      <stop offset="100%" stop-color="#B88A2B" stop-opacity="0"/>
+      <stop offset="0%"   stop-color="#2E89D6" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#2E89D6" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"   stop-color="#1A2942" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="#1A2942" stop-opacity="0"/>
+      <stop offset="0%"   stop-color="#1E4A7A" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#1E4A7A" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%"   stop-color="#0C1B36"/>
-      <stop offset="100%" stop-color="#4A6FA5"/>
+      <stop offset="0%"   stop-color="#0F2E54"/>
+      <stop offset="100%" stop-color="#5CA9DD"/>
     </linearGradient>
     <linearGradient id="errAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%"   stop-color="#8B2E1F" stop-opacity="0.28"/>
@@ -36,8 +36,8 @@
       <stop offset="100%" stop-color="#2F5D3F" stop-opacity="0.02"/>
     </linearGradient>
     <linearGradient id="zoneTargetGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#B88A2B" stop-opacity="0.10"/>
-      <stop offset="100%" stop-color="#B88A2B" stop-opacity="0.02"/>
+      <stop offset="0%" stop-color="#2E89D6" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#2E89D6" stop-opacity="0.02"/>
     </linearGradient>
     <filter id="lineGlow" x="-10%" y="-50%" width="120%" height="200%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
@@ -59,13 +59,13 @@
   <!-- ========== HEADER ========== -->
   <header class="header">
     <div>
-      <div class="brand-mark">Robot Automation · Mass Production Eval</div>
-      <h1 class="brand-title">로봇 자동화 양산평가 <em>관리 대시보드</em></h1>
+      <h1 class="brand-title">Chemical Drum 체결/반송 자동화 <em>양산평가</em></h1>
       <div class="brand-sub">
-        <span><span class="lbl">PROJECT</span><span class="val" id="m-project">—</span></span>
-        <span><span class="lbl">VENDOR</span><span class="val" id="m-vendor">—</span></span>
-        <span><span class="lbl">PM</span><span class="val" id="m-pm">—</span></span>
+        <span><span class="lbl">LOCATION</span><span class="val" id="m-location">—</span></span>
+        <span><span class="lbl">DEPARTMENT</span><span class="val" id="m-department">—</span></span>
+        <span><span class="lbl">TEAM</span><span class="val" id="m-team">—</span></span>
         <span><span class="lbl">START</span><span class="val" id="m-start">—</span></span>
+        <span><span class="lbl">END</span><span class="val" id="m-end">—</span></span>
       </div>
     </div>
     <div class="meta">
@@ -80,12 +80,12 @@
   <!-- ========== TABS ========== -->
   <nav class="tabs">
     <button class="tab active" data-tab="exec">
-      <span>임원 보고</span>
-      <span class="tag">EXEC</span>
+      <span>평가현황</span>
+      <span class="tag">STATUS</span>
     </button>
     <button class="tab" data-tab="ops">
-      <span>실무 관리</span>
-      <span class="tag">OPS</span>
+      <span>세부내역</span>
+      <span class="tag">DETAILS</span>
     </button>
   </nav>
 
@@ -101,15 +101,15 @@
           <div class="hero-stats">
             <div class="hero-stat">
               <div class="hero-stat-lbl">현재</div>
-              <div class="hero-stat-val"><span id="hero-num">0</span><span class="u">사이클</span></div>
+              <div class="hero-stat-val"><span id="hero-num">0</span><span class="u">회</span></div>
             </div>
             <div class="hero-stat">
               <div class="hero-stat-lbl">목표</div>
-              <div class="hero-stat-val"><span id="hero-goal">360</span><span class="u">사이클</span></div>
+              <div class="hero-stat-val"><span id="hero-goal">360</span><span class="u">회</span></div>
             </div>
             <div class="hero-stat">
               <div class="hero-stat-lbl">잔여</div>
-              <div class="hero-stat-val"><span id="hero-remain">360</span><span class="u">사이클</span></div>
+              <div class="hero-stat-val"><span id="hero-remain">360</span><span class="u">회</span></div>
             </div>
           </div>
         </div>
@@ -117,14 +117,14 @@
           <svg class="hero-donut" viewBox="0 0 240 240" aria-hidden="true">
             <defs>
               <linearGradient id="donutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%"   stop-color="#0C1B36"/>
-                <stop offset="55%"  stop-color="#1A2942"/>
-                <stop offset="100%" stop-color="#4A6FA5"/>
+                <stop offset="0%"   stop-color="#0F2E54"/>
+                <stop offset="55%"  stop-color="#1E4A7A"/>
+                <stop offset="100%" stop-color="#5CA9DD"/>
               </linearGradient>
               <linearGradient id="donutGradGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%"   stop-color="#8A6420"/>
-                <stop offset="55%"  stop-color="#B88A2B"/>
-                <stop offset="100%" stop-color="#E8C264"/>
+                <stop offset="0%"   stop-color="#1565C0"/>
+                <stop offset="55%"  stop-color="#2E89D6"/>
+                <stop offset="100%" stop-color="#79BCEC"/>
               </linearGradient>
               <filter id="donutShadow" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
@@ -178,7 +178,6 @@
             <rect x="0" y="2" width="0" height="4" rx="2" class="kpi-bar-fill" id="kpi-streak-bar"/>
           </svg>
         </div>
-        <div class="kpi-sub" id="kpi-streak-sub">—</div>
       </div>
 
       <div class="kpi">
@@ -210,7 +209,6 @@
         <div class="kpi-mini">
           <svg viewBox="0 0 100 28" preserveAspectRatio="none" class="kpi-spark" id="kpi-avg-spark"></svg>
         </div>
-        <div class="kpi-sub" id="kpi-avg-sub">현재 추세 기준</div>
       </div>
 
       <div class="kpi">
@@ -242,6 +240,20 @@
       <div class="summary-body" id="summary-text">데이터를 불러오는 중입니다.</div>
     </div>
 
+    <!-- 안정성 / 페이스 지표 (MTBF, 무에러 연속, ETA) -->
+    <div class="metrics-bar">
+      <div class="metric">
+        <div class="metric-lbl">MTBF</div>
+        <div class="metric-val"><span id="m-mtbf">—</span><span class="u">일</span></div>
+        <div class="metric-sub">평균 무에러 간격</div>
+      </div>
+      <div class="metric">
+        <div class="metric-lbl">무에러 연속</div>
+        <div class="metric-val"><span id="m-noerr">—</span><span class="u">일</span></div>
+        <div class="metric-sub">마지막 에러 이후</div>
+      </div>
+    </div>
+
     <!-- 메인 차트: MTBI 연속 사이클 추이 -->
     <div class="chart-card">
       <div class="chart-header">
@@ -251,7 +263,7 @@
         </div>
         <div class="chart-legend">
           <span><span class="dot"></span>MTBI 연속</span>
-          <span><span class="dot dashed" style="border-top-color:#B88A2B"></span>목표</span>
+          <span><span class="dot dashed" style="border-top-color:#2E89D6"></span>목표</span>
           <span><span class="dot" style="background:#8B2E1F"></span>에러 발생</span>
         </div>
       </div>
@@ -325,46 +337,49 @@
     <!-- 일자별 상세 테이블 -->
     <div class="section-title">일자별 평가 기록</div>
     <div class="section-sub">Daily Evaluation Log</div>
-    <table class="data" id="tbl-daily">
-      <thead>
-        <tr>
-          <th style="width: 100px">평가일</th>
-          <th>입실 인원</th>
-          <th>주 평가 내용</th>
-          <th style="width: 60px">평가</th>
-          <th style="width: 60px">에러</th>
-          <th style="width: 80px">연속<br><span style="font-size:9px;opacity:0.7">(에러 시 리셋)</span></th>
-          <th style="width: 90px">MTBI<br><span style="font-size:9px;opacity:0.7">(한도 시 리셋)</span></th>
-          <th style="width: 80px">진행률</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-scroll">
+      <table class="data" id="tbl-daily">
+        <thead>
+          <tr>
+            <th style="width: 100px">평가일</th>
+            <th>입실 인원</th>
+            <th>주 평가 내용</th>
+            <th style="width: 60px">평가</th>
+            <th style="width: 60px">에러</th>
+            <th style="width: 80px">연속<br><span style="font-size:9px;opacity:0.7">(에러 시 리셋)</span></th>
+            <th style="width: 90px">MTBI<br><span style="font-size:9px;opacity:0.7">(한도 시 리셋)</span></th>
+            <th style="width: 80px">진행률</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
     <!-- 에러 상세 테이블 -->
     <div class="section-title">에러 상세 로그</div>
     <div class="section-sub">Incident Details</div>
-    <table class="data" id="tbl-err">
-      <thead>
-        <tr>
-          <th style="width: 50px">No.</th>
-          <th style="width: 100px">발생일</th>
-          <th style="width: 60px">시각</th>
-          <th style="width: 60px">회차</th>
-          <th style="width: 90px">코드</th>
-          <th>유형 / 상세</th>
-          <th>원인 / 조치</th>
-          <th style="width: 80px">담당</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-scroll">
+      <table class="data" id="tbl-err">
+        <thead>
+          <tr>
+            <th style="width: 50px">No.</th>
+            <th style="width: 100px">발생일</th>
+            <th style="width: 60px">시각</th>
+            <th style="width: 60px">회차</th>
+            <th style="width: 90px">코드</th>
+            <th>유형 / 상세</th>
+            <th>원인 / 조치</th>
+            <th style="width: 80px">담당</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
   </section>
 
   <footer class="footer">
     <div>ROBOT AUTOMATION · INTERNAL USE ONLY</div>
-    <div>v1.0 · Mass Production Evaluation</div>
   </footer>
 
 </div>
@@ -377,8 +392,8 @@
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
-      <p><strong>정식 갱신 방법</strong>: 업체에서 받은 엑셀(.xlsx)을 GitHub 저장소의 <code>data/raw/</code> 폴더에 업로드하면 GitHub Actions가 자동으로 변환합니다. (1~2분 소요)</p>
-      <p><strong>임시 미리보기</strong>: 아래 영역에 데이터를 붙여넣으면 현재 브라우저 세션에서만 적용됩니다. 새로고침 시 사라지며 GitHub 데이터에는 반영되지 않습니다.</p>
+      <p><strong>정식 갱신 방법</strong>: 본인 PC에서 <code>data/raw/</code> 에 새 xlsx를 복사 → <code>python scripts/build_dashboard_json.py</code> 실행 → <code>git add data/ && git commit -m "..." && git push</code>. Pages가 1~2분 뒤 새 데이터를 반영합니다.</p>
+      <p><strong>임시 미리보기</strong>: 아래 영역에 데이터를 붙여넣으면 현재 브라우저 세션에서만 적용됩니다. 새로고침 시 사라지며 저장소 데이터에는 반영되지 않습니다.</p>
       <p>형식 (탭 또는 콤마 구분): <code>평가일 ⇥ 입실인원 ⇥ 주 평가내용 ⇥ 일일평가 ⇥ 일일에러 ⇥ 연속성공 ⇥ 비고</code></p>
       <textarea id="paste-area" placeholder="예시:&#10;2026-05-23	홍길동,김철수	JOB 생성-픽업-적재 사이클	85	0	85	정상&#10;..."></textarea>
       <p style="margin-top:14px"><strong>또는</strong> 에러 로그 데이터 (헤더 제외)도 같은 방식으로 추가 갱신할 수 있습니다.</p>
