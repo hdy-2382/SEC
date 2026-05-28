@@ -66,6 +66,8 @@ git push -u origin main
 pip install -r scripts/requirements.txt
 ```
 
+> **DRM 보호 xlsx를 받는 환경이라면**: 사내 보안 솔루션이 xlsx를 감싸면 일반 파서(openpyxl)로는 못 읽습니다. 이 경우 스크립트가 자동으로 **xlwings**(Excel을 띄워 셀 값을 읽는 방식)로 폴백합니다. xlwings는 `requirements.txt` 에 포함돼있어 Windows에서 위 명령으로 함께 설치됩니다. 단, 그 PC에 **Excel이 설치**돼 있어야 하고, **DRM 에이전트가 정상 동작**해야 합니다 (= 평소 Excel로 그 파일이 열리는 PC).
+
 ## 업체에 보내줄 양식 (xlsx)
 
 `data/vendor_template.xlsx` 가 업체 배포용 표준 양식입니다. `scripts/generate_vendor_template.py` 가 자동 생성합니다.
@@ -172,6 +174,7 @@ python -m http.server 8000
 | Pages가 이상하게 렌더링됨 (`_` 시작 파일 누락 등) | `.nojekyll` 파일이 root에 있는지 확인 |
 | 데이터가 옛날 그대로 | 브라우저 강제 새로고침 (Ctrl+Shift+R). app.js는 `?t=...` 쿼리로 캐시 우회 |
 | `python scripts/build_dashboard_json.py` 실패 | xlsx 시트명/컬럼명 불일치. 별칭 사전(`*_FIELD_ALIASES`)에 새 헤더명 추가 |
+| `zipfile.BadZipFile: File is not a zip file` | 사내 DRM 보호 파일. 스크립트가 자동으로 xlwings(Excel) 폴백 시도 — `pip install xlwings` 필요 (Windows + Excel 설치 PC 한정). 그래도 안 되면 Excel로 파일 열고 "다른 이름으로 저장 → DRM 해제 영역" 후 재시도 |
 | 로컬에서 차트 안 보임 | file:// 직접 열기는 fetch 차단됨. `python -m http.server` 또는 Live Server 사용 |
 | push 인증 실패 | 사내 GHE의 PAT(Personal Access Token) 발급 또는 SSH 키 등록 |
 

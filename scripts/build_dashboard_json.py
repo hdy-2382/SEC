@@ -11,6 +11,11 @@ build_dashboard_json.py
     (시트명이 정확히 일치하지 않으면 부분 매칭으로 찾는다)
   - 출력: data/dashboard.json (UTF-8, 한글 그대로)
 
+읽기 방식:
+  - 1차: openpyxl (빠름, 일반 xlsx 전용)
+  - 2차 폴백: xlwings (Excel 실행, DRM 보호된 xlsx도 처리 가능)
+    → Windows + Excel 설치 필요. openpyxl이 zipfile.BadZipFile로 실패하면 자동 전환.
+
 기대 컬럼:
   일일평가 시트  : 평가일, 입실인원, 주평가내용, 일일평가, 일일에러, 연속성공, 비고
   에러로그 시트  : No, 발생일, 시각, 회차, 코드, 유형, 상세, 원인, 조치, 결과, 담당
@@ -20,11 +25,9 @@ from __future__ import annotations
 
 import json
 import re
-import sys
+import zipfile
 from datetime import date, datetime, time
 from pathlib import Path
-
-from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw"
@@ -56,6 +59,9 @@ ERROR_FIELD_ALIASES = {
     "owner":  ["담당", "담당자", "owner"],
 }
 
+DAILY_SHEET_KEYWORDS  = ["일일평가", "일일", "daily"]
+ERRORS_SHEET_KEYWORDS = ["에러로그", "에러", "error"]
+
 
 def _norm(s) -> str:
     if s is None:
@@ -63,14 +69,14 @@ def _norm(s) -> str:
     return re.sub(r"\s+", "", str(s)).lower()
 
 
-def _find_sheet(wb, keywords: list[str]):
-    """시트명에 keywords 중 하나라도 포함되는 첫 시트를 반환."""
-    norm_names = {name: _norm(name) for name in wb.sheetnames}
+def _find_name(names: list[str], keywords: list[str]) -> str | None:
+    """시트명 리스트에서 keywords 중 하나라도 포함된 첫 이름을 반환."""
+    norm_map = {n: _norm(n) for n in names}
     for kw in keywords:
         kw_n = _norm(kw)
-        for name, n in norm_names.items():
-            if kw_n in n:
-                return wb[name]
+        for name in names:
+            if kw_n in norm_map[name]:
+                return name
     return None
 
 
@@ -111,8 +117,7 @@ def _cell_to_int(v) -> int:
         return 0
 
 
-def _parse_daily(sheet) -> list[dict]:
-    rows = list(sheet.iter_rows(values_only=True))
+def _parse_daily(rows: list[list]) -> list[dict]:
     if not rows:
         return []
     header, *body = rows
@@ -143,8 +148,7 @@ def _parse_daily(sheet) -> list[dict]:
     return out
 
 
-def _parse_errors(sheet) -> list[dict]:
-    rows = list(sheet.iter_rows(values_only=True))
+def _parse_errors(rows: list[list]) -> list[dict]:
     if not rows:
         return []
     header, *body = rows
@@ -185,21 +189,91 @@ def _pick_latest_xlsx() -> Path:
     return xlsxs[0]
 
 
+# ── 시트 로딩: openpyxl 우선, 실패하면 xlwings ────────────────────
+def _load_via_openpyxl(src: Path) -> tuple[list[list], list[list], list[str]]:
+    from openpyxl import load_workbook
+    wb = load_workbook(src, data_only=True)
+    names = wb.sheetnames
+    daily_name  = _find_name(names, DAILY_SHEET_KEYWORDS)
+    errors_name = _find_name(names, ERRORS_SHEET_KEYWORDS)
+
+    if daily_name is None:
+        raise SystemExit(f"'일일평가' 시트를 찾지 못했습니다. 시트 목록: {names}")
+
+    daily_rows  = [list(r) for r in wb[daily_name].iter_rows(values_only=True)]
+    errors_rows = (
+        [list(r) for r in wb[errors_name].iter_rows(values_only=True)]
+        if errors_name else []
+    )
+    return daily_rows, errors_rows, names
+
+
+def _xlwings_sheet_rows(sheet) -> list[list]:
+    rng = sheet.used_range
+    val = rng.value
+    if val is None:
+        return []
+    if not isinstance(val, list):
+        return [[val]]
+    if val and not isinstance(val[0], list):
+        # 1D 결과 — 단일 행 or 단일 열
+        if rng.rows.count == 1:
+            return [val]
+        return [[v] for v in val]
+    return val
+
+
+def _load_via_xlwings(src: Path) -> tuple[list[list], list[list], list[str]]:
+    try:
+        import xlwings as xw
+    except ImportError as e:
+        raise SystemExit(
+            "xlwings 미설치. DRM 보호 파일을 읽으려면 'pip install xlwings' 후 재시도. "
+            "(Windows + Excel 설치 필수)"
+        ) from e
+
+    app = xw.App(visible=False, add_book=False)
+    app.display_alerts = False
+    try:
+        wb = app.books.open(str(src), update_links=False, read_only=True)
+        try:
+            names = [s.name for s in wb.sheets]
+            daily_name  = _find_name(names, DAILY_SHEET_KEYWORDS)
+            errors_name = _find_name(names, ERRORS_SHEET_KEYWORDS)
+
+            if daily_name is None:
+                raise SystemExit(f"'일일평가' 시트를 찾지 못했습니다. 시트 목록: {names}")
+
+            daily_rows  = _xlwings_sheet_rows(wb.sheets[daily_name])
+            errors_rows = (
+                _xlwings_sheet_rows(wb.sheets[errors_name])
+                if errors_name else []
+            )
+            return daily_rows, errors_rows, names
+        finally:
+            wb.close()
+    finally:
+        app.quit()
+
+
+def _load_workbook_rows(src: Path) -> tuple[list[list], list[list]]:
+    try:
+        daily_rows, errors_rows, _ = _load_via_openpyxl(src)
+        return daily_rows, errors_rows
+    except zipfile.BadZipFile:
+        # DRM 래핑 추정 — openpyxl은 zip 구조가 아니라고 거부함
+        print("[build] openpyxl 실패 (DRM 추정) → xlwings로 Excel 통한 재시도")
+        daily_rows, errors_rows, _ = _load_via_xlwings(src)
+        return daily_rows, errors_rows
+
+
 def main():
     src = _pick_latest_xlsx()
     print(f"[build] 입력 파일: {src.name}")
 
-    wb = load_workbook(src, data_only=True)
-    daily_sheet  = _find_sheet(wb, ["일일평가", "일일", "daily"])
-    errors_sheet = _find_sheet(wb, ["에러로그", "에러", "error"])
-
-    if daily_sheet is None:
-        raise SystemExit(
-            f"'일일평가' 시트를 찾지 못했습니다. 시트 목록: {wb.sheetnames}"
-        )
-
-    daily = _parse_daily(daily_sheet)
-    errors = _parse_errors(errors_sheet) if errors_sheet is not None else []
+    daily_rows, errors_rows = _load_workbook_rows(src)
+    daily  = _parse_daily(daily_rows)
+    errors = _parse_errors(errors_rows)
 
     out = {
         "generatedAt": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
