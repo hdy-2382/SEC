@@ -107,11 +107,12 @@ function render() {
   const builtAt = DATA._meta && DATA._meta.generatedAt;
   $('m-now').textContent = builtAt ? builtAt.replace('T', ' ').replace('Z', ' UTC') : '—';
 
-  // 정렬
-  DATA.daily.sort((a, b) => a.date.localeCompare(b.date));
+  // 정렬 (date 누락 row 방어)
+  DATA.daily.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 
-  const target = DATA.project.target;
-  const errLimit = DATA.project.errorLimit;
+  // target / errorLimit — config 누락/0 fallback. 분모로 쓰이는 곳에서 NaN/Infinity 방지.
+  const target   = Math.max(1, +DATA.project.target   || 360);
+  const errLimit = Math.max(1, +DATA.project.errorLimit || 3);
 
   // 누적 계산
   // - cumTotal/cumErr: 전체 누적 (참고용)
@@ -123,6 +124,9 @@ function render() {
   let mtbiAttempt = 1;   // 몇 번째 시도인지
 
   DATA.daily.forEach(d => {
+    // null/undefined/NaN 들어와도 0 처리 — 손수 편집한 JSON, 누락 셀 등 방어
+    d.total  = Number.isFinite(+d.total)  ? +d.total  : 0;
+    d.errors = Number.isFinite(+d.errors) ? +d.errors : 0;
     cum += d.total;
     cumErr += d.errors;
     d.cumTotal = cum;
@@ -254,12 +258,13 @@ function render() {
     for (let i = 1; i < errorDays.length; i++) {
       const a = new Date(errorDays[i - 1].date);
       const b = new Date(errorDays[i].date);
-      intervals.push(Math.round((b - a) / ONE_DAY));
+      const days = Math.round((b - a) / ONE_DAY);
+      if (Number.isFinite(days)) intervals.push(days);   // Invalid Date 방어
     }
-    const avg = intervals.reduce((s, v) => s + v, 0) / intervals.length;
-    mtbfStr = avg.toFixed(1);
-  } else if (errorDays.length === 1) {
-    mtbfStr = '—';
+    if (intervals.length > 0) {
+      const avg = intervals.reduce((s, v) => s + v, 0) / intervals.length;
+      mtbfStr = avg.toFixed(1);
+    }
   }
   $('m-mtbf').textContent = mtbfStr;
 
@@ -269,13 +274,31 @@ function render() {
     noErrDays = elapsedDays;
   } else {
     const lastErrD = new Date(errorDays[errorDays.length - 1].date);
-    noErrDays = Math.max(0, Math.round((refD - lastErrD) / ONE_DAY));
+    const calc = Math.round((refD - lastErrD) / ONE_DAY);
+    noErrDays = Number.isFinite(calc) ? Math.max(0, calc) : 0;
   }
   $('m-noerr').textContent = fmt(noErrDays);
+
+  // 총 누적 평가 (에러 포함 전체)
+  $('m-cum-total').textContent = fmt(totalCycles);
+
+  // 누적 에러율 (%) — 0 cycles 일 때는 '—'
+  const errRate = totalCycles > 0 ? (totalErrs / totalCycles) * 100 : null;
+  $('m-err-rate').textContent = errRate === null ? '—' : errRate.toFixed(2);
+
+  // 14일 이동 에러율 (%) — 최근 14일 윈도우의 에러합/평가합
+  // 14일 미만 데이터에서는 가용한 모든 데이터로 fallback
+  const WIN = 14;
+  const recent = DATA.daily.slice(-WIN);
+  const recentErr = recent.reduce((s, d) => s + (d.errors || 0), 0);
+  const recentTot = recent.reduce((s, d) => s + (d.total  || 0), 0);
+  const errRate14 = recentTot > 0 ? (recentErr / recentTot) * 100 : null;
+  $('m-err-rate-14').textContent = errRate14 === null ? '—' : errRate14.toFixed(2);
 
   drawCumulativeChart();
   drawErrorChart();
   drawDailyErrorTrend();
+  drawStabilityChart();
   drawDailyChart();
   drawKeywordTop5();
   drawDailyTable();
@@ -335,9 +358,10 @@ function drawCumulativeChart() {
   const w = W - PAD.l - PAD.r;
   const h = H - PAD.t - PAD.b;
 
-  const target = DATA.project.target;
-  // Y축 400으로 고정 (target 360 + 여유)
-  const maxY = 400;
+  const target = Math.max(1, +DATA.project.target || 360);
+  // Y축 — target 의 ~110% 또는 관측된 최대 streak 의 ~110% 중 큰 값. config 변경에 자동 적응.
+  const maxObservedStreak = DATA.daily.reduce((m, d) => Math.max(m, d.mtbiStreak || 0), 0);
+  const maxY = Math.max(Math.ceil(target * 1.1 / 50) * 50, Math.ceil(maxObservedStreak * 1.1 / 50) * 50, 100);
   const n = DATA.daily.length;
 
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
@@ -439,9 +463,10 @@ function drawErrorChart() {
   const W = 1200, H = 180, PAD = { l: 60, r: 30, t: 24, b: 40 };
   const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
 
-  const limit = DATA.project.errorLimit;
-  // Y축 5로 고정
-  const maxY = 5;
+  const limit = Math.max(1, +DATA.project.errorLimit || 3);
+  // Y축 — limit + 2 또는 관측된 최대 attemptErrs + 1 중 큰 값
+  const maxObservedAttemptErrs = DATA.daily.reduce((m, d) => Math.max(m, d.attemptErrs || 0), 0);
+  const maxY = Math.max(limit + 2, maxObservedAttemptErrs + 1, 5);
   const n = DATA.daily.length;
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
   const ys = v => PAD.t + h - (v / maxY) * h;
@@ -521,72 +546,232 @@ function drawErrorChart() {
   svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1"/>`;
 }
 
-/* ─── 차트: 일일 에러 발생 추이 (안정화 지표) ──── */
+/* ─── 차트: 14일 단위 에러 추이 (안정화 지표) ────────────
+   - 시작일부터 14일씩 끊어 bucket. 마지막 bucket은 잔여일만큼만(미완료).
+   - 각 bucket: 에러 합(좌축 막대), 에러율 %(우축 라인) 동시 표시.
+   - 일일 노이즈가 누적되어 트렌드가 더 명확. */
 function drawDailyErrorTrend() {
   const svg = $('chart-daily-err');
   if (!svg) return;
   svg.innerHTML = '';
-  const W = 1200, H = 220, PAD = { l: 60, r: 30, t: 24, b: 40 };
+  const W = 1200, H = 240, PAD = { l: 60, r: 70, t: 28, b: 56 };
   const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
 
   const n = DATA.daily.length;
   if (n === 0) return;
 
-  const errors = DATA.daily.map(d => d.errors || 0);
-  const maxY = Math.max(...errors, 3);
-  const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
-  const ys = v => PAD.t + h - (v / maxY) * h;
-
-  // 7일 이동평균
-  const WINDOW = 7;
-  const ma = errors.map((_, i) => {
-    const start = Math.max(0, i - WINDOW + 1);
-    const slice = errors.slice(start, i + 1);
-    return slice.reduce((a, b) => a + b, 0) / slice.length;
-  });
-
-  // Y축 grid + tick
-  const ticks = Math.min(maxY, 5);
-  for (let i = 0; i <= ticks; i++) {
-    const y = PAD.t + (i / ticks) * h;
-    const val = (maxY * (1 - i / ticks)).toFixed(maxY >= 5 ? 0 : 1);
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
-    svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${val}</text>`;
+  // 14일 bucket 으로 묶기 (시작 인덱스 0부터 14개씩)
+  const BUCKET = 14;
+  const buckets = [];
+  for (let i = 0; i < n; i += BUCKET) {
+    const slice = DATA.daily.slice(i, i + BUCKET);
+    const err = slice.reduce((s, d) => s + (d.errors || 0), 0);
+    const tot = slice.reduce((s, d) => s + (d.total  || 0), 0);
+    buckets.push({
+      err, tot,
+      rate: tot > 0 ? (err / tot) * 100 : 0,
+      startDate: slice[0].date,
+      endDate:   slice[slice.length - 1].date,
+      days:      slice.length,
+      partial:   slice.length < BUCKET,
+    });
   }
 
-  // 일일 에러 막대
-  const barW = Math.max(6, Math.min(28, (w / n) * 0.6));
-  DATA.daily.forEach((d, i) => {
-    const e = d.errors || 0;
-    if (e <= 0) {
-      // 0 에러는 아주 옅은 막대 (시각적으로 "이 날 에러 없음"을 표시)
-      const baseY = ys(0);
-      svg.innerHTML += `<rect x="${xs(i) - barW/2}" y="${baseY - 4}" width="${barW}" height="4" rx="2" fill="#E8E4D8"/>`;
-      return;
+  const m = buckets.length;
+  if (m === 0) return;
+
+  // Y축 스케일: 좌(에러 카운트) — 최소 3 보장. 우(에러율 %) — 최소 5% 보장.
+  const maxErr = Math.max(3, Math.max(...buckets.map(b => b.err)));
+  const maxRate = Math.max(5, Math.ceil(Math.max(...buckets.map(b => b.rate)) * 1.2));
+
+  // 막대 위치: m개를 균등 분배
+  const slot = w / m;
+  const barW = Math.min(64, slot * 0.62);
+  const xs = i => PAD.l + slot * (i + 0.5);
+  const ysE = v => PAD.t + h - (v / maxErr)  * h;
+  const ysR = v => PAD.t + h - (v / maxRate) * h;
+
+  // 가로 grid + 좌/우 축 라벨
+  const TICKS = Math.min(maxErr, 5);
+  for (let i = 0; i <= TICKS; i++) {
+    const y = PAD.t + (i / TICKS) * h;
+    const errVal  = (maxErr  * (1 - i / TICKS));
+    const rateVal = (maxRate * (1 - i / TICKS));
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
+    // 좌축 — 에러 카운트
+    svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#8B2E1F">${errVal.toFixed(maxErr >= 5 ? 0 : 1)}</text>`;
+    // 우축 — 에러율 %
+    svg.innerHTML += `<text x="${W - PAD.r + 8}" y="${y + 4}" text-anchor="start" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#2E89D6">${rateVal.toFixed(maxRate >= 10 ? 0 : 1)}%</text>`;
+  }
+
+  // 축 타이틀
+  svg.innerHTML += `<text x="${PAD.l - 8}" y="${PAD.t - 10}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#8B2E1F" letter-spacing="0.08em">ERR (건)</text>`;
+  svg.innerHTML += `<text x="${W - PAD.r + 8}" y="${PAD.t - 10}" text-anchor="start" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#2E89D6" letter-spacing="0.08em">RATE %</text>`;
+
+  // 막대 + 값 라벨
+  buckets.forEach((b, i) => {
+    const cx = xs(i);
+    const bx = cx - barW / 2;
+    if (b.err <= 0) {
+      // 0 에러 bucket — 옅은 막대로 "에러 없음" 표시
+      svg.innerHTML += `<rect x="${bx}" y="${ysE(0) - 4}" width="${barW}" height="4" rx="2" fill="#E8E4D8"/>`;
+      svg.innerHTML += `<text x="${cx}" y="${ysE(0) - 10}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#9AA0A8">0</text>`;
+    } else {
+      const by = ysE(b.err);
+      const bh = (PAD.t + h) - by;
+      svg.innerHTML += `<rect x="${bx}" y="${by}" width="${barW}" height="${bh}" rx="4" fill="url(#errLineGrad)" opacity="${b.partial ? 0.55 : 1}"/>`;
+      svg.innerHTML += `<text x="${cx}" y="${by - 6}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#8B2E1F">${b.err}</text>`;
     }
-    const x = xs(i) - barW / 2;
-    const y = ys(e);
-    const barH = (PAD.t + h) - y;
-    svg.innerHTML += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="url(#errLineGrad)"/>`;
-    // 값 라벨
-    svg.innerHTML += `<text x="${xs(i)}" y="${y - 6}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#8B2E1F">${e}</text>`;
   });
 
-  // 7일 이동평균 추세선 (smooth)
-  if (n >= 2) {
-    const pts = ma.map((v, i) => [xs(i), ys(v)]);
+  // 에러율(%) 라인 — 우축
+  if (m >= 2) {
+    const pts = buckets.map((b, i) => [xs(i), ysR(b.rate)]);
     const lineD = smoothPath(pts);
-    svg.innerHTML += `<path d="${lineD}" fill="none" stroke="#2E89D6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0" opacity="0.9" filter="url(#lineGlow)"/>`;
-    // 마지막 값에 점
-    const lastIdx = pts.length - 1;
-    svg.innerHTML += `<circle cx="${pts[lastIdx][0]}" cy="${pts[lastIdx][1]}" r="4" fill="#FFFFFF" stroke="#2E89D6" stroke-width="2.2"/>`;
-    // 현재 이동평균 값 라벨
-    const labelX = Math.min(pts[lastIdx][0] + 8, W - PAD.r - 80);
+    svg.innerHTML += `<path d="${lineD}" fill="none" stroke="#2E89D6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)"/>`;
+    pts.forEach(([px, py], i) => {
+      svg.innerHTML += `<circle cx="${px}" cy="${py}" r="4" fill="#FFFFFF" stroke="#2E89D6" stroke-width="2.2"/>`;
+    });
+    // 마지막 bucket 에러율 라벨
+    const last = buckets[m - 1];
+    const lblX = Math.min(pts[m-1][0] + 8, W - PAD.r - 76);
     svg.innerHTML += `
-      <g transform="translate(${labelX}, ${pts[lastIdx][1] - 14})">
-        <rect x="0" y="0" width="80" height="22" rx="11" fill="#2E89D6"/>
-        <text x="40" y="15" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF">MA${WINDOW} ${ma[lastIdx].toFixed(2)}</text>
+      <g transform="translate(${lblX}, ${pts[m-1][1] - 11})">
+        <rect x="0" y="0" width="76" height="22" rx="11" fill="#2E89D6"/>
+        <text x="38" y="15" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF">${last.rate.toFixed(2)}%</text>
       </g>`;
+  } else if (m === 1) {
+    svg.innerHTML += `<circle cx="${xs(0)}" cy="${ysR(buckets[0].rate)}" r="5" fill="#FFFFFF" stroke="#2E89D6" stroke-width="2.5"/>`;
+  }
+
+  // X축 라벨 — bucket 범위 표시 (MM/DD-MM/DD)
+  buckets.forEach((b, i) => {
+    const cx = xs(i);
+    const labelTop = `${fmtDate(b.startDate)}–${fmtDate(b.endDate)}`;
+    const labelBot = b.partial ? `${b.days}일 (진행중)` : `${b.days}일`;
+    svg.innerHTML += `<text x="${cx}" y="${H - PAD.b + 18}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#3D4147">${labelTop}</text>`;
+    svg.innerHTML += `<text x="${cx}" y="${H - PAD.b + 32}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="600" fill="#7B8087">${labelBot}</text>`;
+  });
+
+  // X축 라인
+  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5"/>`;
+}
+
+/* ─── 차트: 시스템 안정성 추이 (이동 에러율 + 누적 에러율 + MTBF) ───
+   - 14일 이동 에러율(%) = 최근 14일 에러합 / 최근 14일 평가합 × 100  → 좌축, 빨강 실선(메인)
+     · 14일 미만 데이터에서는 가용한 모든 데이터로 fallback
+     · "최근 안정화 여부"를 즉각 보여주는 지표
+   - 누적 에러율(%)      = (누적에러 / 누적평가) × 100                → 좌축, 빨강 점선(베이스라인)
+     · 전체 신뢰도. 천천히 변함
+   - 누적 MTBF(일)       = 경과일수 / max(누적에러, 1)               → 우축, 파랑
+     · 에러 0건일 땐 분모 1 fallback (발산 방지)
+   이동 에러율 ↓ + MTBF ↑ 가 동시에 진행되면 안정화. */
+function drawStabilityChart() {
+  const svg = $('chart-stability');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const W = 1200, H = 240, PAD = { l: 60, r: 70, t: 28, b: 40 };
+  const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
+
+  const n = DATA.daily.length;
+  if (n === 0) return;
+
+  // 시점별 지표 계산
+  const startD = new Date(DATA.project.startDate);
+  const ONE_DAY = 86400000;
+  const WINDOW = 14;
+  const points = DATA.daily.map((d, i) => {
+    const dDate = new Date(d.date);
+    const elapsed = Math.max(1, Math.round((dDate - startD) / ONE_DAY) + 1);
+    const rateCum = d.cumTotal > 0 ? (d.cumErr / d.cumTotal) * 100 : 0;
+    // 14일 윈도우 (또는 가용한 모든 과거 데이터): 윈도우 내 에러합/평가합
+    const wStart = Math.max(0, i - WINDOW + 1);
+    let wErr = 0, wTot = 0;
+    for (let k = wStart; k <= i; k++) {
+      wErr += DATA.daily[k].errors || 0;
+      wTot += DATA.daily[k].total  || 0;
+    }
+    const rateWin = wTot > 0 ? (wErr / wTot) * 100 : 0;
+    const mtbf = elapsed / Math.max(d.cumErr, 1);
+    return { date: d.date, rateCum, rateWin, mtbf, cumErr: d.cumErr };
+  });
+
+  // 스케일: 좌축(에러율) — 두 라인 중 최댓값 기준. 최소 5% 보장.
+  const maxObservedRate = Math.max(...points.map(p => Math.max(p.rateCum, p.rateWin)));
+  const maxRate = Math.max(5, Math.ceil(maxObservedRate * 1.2));
+  const maxMtbf = Math.max(10, Math.ceil(Math.max(...points.map(p => p.mtbf)) * 1.15));
+
+  const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
+  const ysR = v => PAD.t + h - (v / maxRate) * h;   // 에러율(좌축)
+  const ysM = v => PAD.t + h - (v / maxMtbf) * h;   // MTBF(우축)
+
+  // 가로 grid
+  const TICKS = 5;
+  for (let i = 0; i <= TICKS; i++) {
+    const y = PAD.t + (i / TICKS) * h;
+    const rateVal = (maxRate * (1 - i / TICKS));
+    const mtbfVal = (maxMtbf * (1 - i / TICKS));
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="#E8E4D8" stroke-width="1" stroke-dasharray="2,3"/>`;
+    // 좌축: 에러율 (%)
+    svg.innerHTML += `<text x="${PAD.l - 8}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#8B2E1F">${rateVal.toFixed(maxRate >= 10 ? 0 : 1)}%</text>`;
+    // 우축: MTBF (일)
+    svg.innerHTML += `<text x="${W - PAD.r + 8}" y="${y + 4}" text-anchor="start" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#2E89D6">${mtbfVal.toFixed(maxMtbf >= 10 ? 0 : 1)}d</text>`;
+  }
+
+  // 축 타이틀
+  svg.innerHTML += `<text x="${PAD.l - 8}" y="${PAD.t - 10}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#8B2E1F" letter-spacing="0.08em">ERROR %</text>`;
+  svg.innerHTML += `<text x="${W - PAD.r + 8}" y="${PAD.t - 10}" text-anchor="start" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#2E89D6" letter-spacing="0.08em">MTBF d</text>`;
+
+  if (n >= 2) {
+    // ── 14일 이동 에러율 (메인, 빨강 area + 굵은 실선) ─────────
+    const winPts = points.map((p, i) => [xs(i), ysR(p.rateWin)]);
+    const winLine = smoothPath(winPts);
+    const winArea = `${winLine} L ${winPts[winPts.length - 1][0]} ${PAD.t + h} L ${winPts[0][0]} ${PAD.t + h} Z`;
+    svg.innerHTML += `<path d="${winArea}" fill="url(#errAreaGrad)" opacity="0.55"/>`;
+    svg.innerHTML += `<path d="${winLine}" fill="none" stroke="#8B2E1F" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#errLineGlow)"/>`;
+
+    // ── 누적 에러율 (베이스라인, 빨강 점선) ─────────────────
+    const cumPts = points.map((p, i) => [xs(i), ysR(p.rateCum)]);
+    const cumLine = smoothPath(cumPts);
+    svg.innerHTML += `<path d="${cumLine}" fill="none" stroke="#8B2E1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" opacity="0.7"/>`;
+
+    // ── MTBF 라인 (파랑, 우축) ──────────────────────────
+    const mtbfPts = points.map((p, i) => [xs(i), ysM(p.mtbf)]);
+    const mtbfLine = smoothPath(mtbfPts);
+    svg.innerHTML += `<path d="${mtbfLine}" fill="none" stroke="#2E89D6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)"/>`;
+
+    // 마지막 값 마커
+    const lastIdx = points.length - 1;
+    const last = points[lastIdx];
+    svg.innerHTML += `<circle cx="${winPts[lastIdx][0]}" cy="${winPts[lastIdx][1]}" r="5" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
+    svg.innerHTML += `<circle cx="${cumPts[lastIdx][0]}" cy="${cumPts[lastIdx][1]}" r="3.5" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="1.5" opacity="0.75"/>`;
+    svg.innerHTML += `<circle cx="${mtbfPts[lastIdx][0]}" cy="${mtbfPts[lastIdx][1]}" r="5" fill="#FFFFFF" stroke="#2E89D6" stroke-width="2.5"/>`;
+
+    // 라벨: 14일 이동(굵게) · 누적(작게) · MTBF
+    // 세 라벨이 같은 X에 모이므로 Y를 정렬하면서 겹침 회피.
+    const lblX = Math.min(winPts[lastIdx][0] + 10, W - PAD.r - 100);
+    const positions = [
+      { y: winPts[lastIdx][1],  text: `14D ${last.rateWin.toFixed(2)}%`, fill: '#8B2E1F', w: 92 },
+      { y: cumPts[lastIdx][1],  text: `CUM ${last.rateCum.toFixed(2)}%`, fill: '#6B1F14', w: 92, faded: true },
+      { y: mtbfPts[lastIdx][1], text: `MTBF ${last.mtbf.toFixed(1)}d`,    fill: '#2E89D6', w: 92 },
+    ].sort((a, b) => a.y - b.y);
+    // 위에서부터 최소 26px 간격 유지 (겹침 방지)
+    for (let k = 1; k < positions.length; k++) {
+      if (positions[k].y - positions[k-1].y < 26) {
+        positions[k].y = positions[k-1].y + 26;
+      }
+    }
+    positions.forEach(pos => {
+      svg.innerHTML += `
+        <g transform="translate(${lblX}, ${pos.y - 11})" opacity="${pos.faded ? 0.85 : 1}">
+          <rect x="0" y="0" width="${pos.w}" height="22" rx="11" fill="${pos.fill}"/>
+          <text x="${pos.w/2}" y="15" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF">${pos.text}</text>
+        </g>`;
+    });
+  } else if (n === 1) {
+    // 데이터 1점만 있을 때는 점만 표시
+    svg.innerHTML += `<circle cx="${xs(0)}" cy="${ysR(points[0].rateWin)}" r="5" fill="#FFFFFF" stroke="#8B2E1F" stroke-width="2.5"/>`;
+    svg.innerHTML += `<circle cx="${xs(0)}" cy="${ysM(points[0].mtbf)}" r="5" fill="#FFFFFF" stroke="#2E89D6" stroke-width="2.5"/>`;
   }
 
   // X축 라벨
@@ -596,8 +781,23 @@ function drawDailyErrorTrend() {
     svg.innerHTML += `<text x="${x}" y="${H - PAD.b + 18}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmtDate(DATA.daily[i].date)}</text>`;
   });
 
-  // X축 라인
   svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${PAD.t + h}" y2="${PAD.t + h}" stroke="#0F1419" stroke-width="1.5"/>`;
+
+  // 하단 안내 텍스트 — 추세 평가 (14일 이동 에러율 기준으로 "최근 안정성" 판정)
+  const hint = $('stability-hint');
+  if (hint && n >= 2) {
+    const first = points[0], last = points[points.length - 1];
+    const rateDelta = last.rateWin - first.rateWin;   // 음수면 개선
+    const mtbfDelta = last.mtbf    - first.mtbf;      // 양수면 개선
+    const tag = last.rateWin < first.rateWin && mtbfDelta >= 0
+      ? `<span class="good">안정화 진행</span>`
+      : (rateDelta > 0 && mtbfDelta < 0)
+        ? `<span class="bad">악화 추세</span>`
+        : `<span class="neutral">혼합 추세</span>`;
+    hint.innerHTML = `${tag} · 14일 이동 에러율 ${first.rateWin.toFixed(2)}% → <strong>${last.rateWin.toFixed(2)}%</strong> · 누적 에러율 <strong>${last.rateCum.toFixed(2)}%</strong> · MTBF ${first.mtbf.toFixed(1)}d → <strong>${last.mtbf.toFixed(1)}d</strong>`;
+  } else if (hint) {
+    hint.innerHTML = `<span class="neutral">데이터 누적 중</span> · 2일 이상 누적되면 추세 분석을 표시합니다.`;
+  }
 }
 
 /* ─── 차트: 일일 평가 막대 ──────────────── */
@@ -607,8 +807,10 @@ function drawDailyChart() {
   const W = 1200, H = 240, PAD = { l: 60, r: 30, t: 20, b: 40 };
   const w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
 
-  const maxY = Math.max(...DATA.daily.map(d => d.total), 10);
   const n = DATA.daily.length;
+  if (n === 0) return;   // 데이터 없을 때 0 나눗셈 방지
+
+  const maxY = Math.max(...DATA.daily.map(d => d.total || 0), 10);
   const barW = (w / n) * 0.7;
   const gap = (w / n) * 0.3;
 
@@ -644,7 +846,7 @@ function drawDailyChart() {
 function drawDailyTable() {
   const tbody = document.querySelector('#tbl-daily tbody');
   tbody.innerHTML = '';
-  const target = DATA.project.target;
+  const target = Math.max(1, +DATA.project.target || 360);
   [...DATA.daily].reverse().forEach(d => {
     const tr = document.createElement('tr');
     const pct = ((d.mtbiStreak / target) * 100).toFixed(1);

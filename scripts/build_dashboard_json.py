@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 import re
 import zipfile
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,6 +96,32 @@ def _build_column_map(header_row, aliases: dict[str, list[str]]) -> dict[str, in
     return col_map
 
 
+def _find_header_row(rows: list[list], aliases: dict[str, list[str]]) -> int:
+    """선두 최대 10행에서 헤더처럼 보이는 행 인덱스를 찾는다.
+    vendor가 상단에 제목/병합 안내를 넣었을 때 1행이 아닐 수 있어서 자동 감지.
+    헤더 후보 매칭 개수가 가장 많은 행을 선택. 매칭이 전혀 없으면 0(첫행) fallback.
+    """
+    best_idx, best_hits = 0, 0
+    candidates_flat: list[str] = []
+    for cands in aliases.values():
+        candidates_flat.extend(_norm(c) for c in cands if c)
+    for idx, row in enumerate(rows[:10]):
+        if row is None:
+            continue
+        norm_cells = [_norm(c) for c in row]
+        hits = 0
+        for cell in norm_cells:
+            if not cell:
+                continue
+            for cand_n in candidates_flat:
+                if cell == cand_n or (cand_n and cand_n in cell):
+                    hits += 1
+                    break
+        if hits > best_hits:
+            best_idx, best_hits = idx, hits
+    return best_idx
+
+
 _DATE_TEXT_RE = re.compile(
     r"^\s*(\d{2,4})[\s\.\-/년]+(\d{1,2})[\s\.\-/월]+(\d{1,2})\s*일?\s*$"
 )
@@ -117,6 +143,9 @@ def _try_normalize_date(s: str) -> str:
         return s
 
 
+_EXCEL_EPOCH = datetime(1899, 12, 30)   # Excel 1900 leap-year 버그 보정 포함
+
+
 def _cell_to_str(v) -> str:
     if v is None:
         return ""
@@ -126,6 +155,15 @@ def _cell_to_str(v) -> str:
         return v.strftime("%Y-%m-%d")
     if isinstance(v, time):
         return v.strftime("%H:%M")
+    # Excel 직렬 날짜 — 셀 서식이 '일반/숫자'면 float로 넘어옴.
+    # 20000~80000 범위면 1954~2118년 사이 → 날짜로 해석. (bool은 int 서브클래스라 명시적으로 제외)
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        try:
+            f = float(v)
+            if 20000 < f < 80000:
+                return (_EXCEL_EPOCH + timedelta(days=f)).strftime("%Y-%m-%d")
+        except (OverflowError, ValueError):
+            pass
     s = str(v).strip()
     # 날짜처럼 보이면 정규화 시도 (다양한 구분자/생략 연도 등 대응)
     return _try_normalize_date(s)
@@ -140,32 +178,42 @@ def _cell_to_int(v) -> int:
         return 0
 
 
+def _safe_idx(row: list, idx: int):
+    """row가 짧으면 None 반환 — vendor가 컬럼 수를 다르게 보낼 때 IndexError 방지."""
+    return row[idx] if idx is not None and 0 <= idx < len(row) else None
+
+
 def _parse_daily(rows: list[list]) -> list[dict]:
     if not rows:
         return []
-    header, *body = rows
+    header_idx = _find_header_row(rows, DAILY_FIELD_ALIASES)
+    header = rows[header_idx]
+    body = rows[header_idx + 1:]
     cmap = _build_column_map(header, DAILY_FIELD_ALIASES)
     if "date" not in cmap or "total" not in cmap:
         raise SystemExit(
             f"[일일평가] 시트에서 필수 컬럼(평가일/일일평가)을 찾지 못했습니다. "
-            f"감지된 헤더: {[str(h) for h in header]}"
+            f"감지된 헤더(행 {header_idx + 1}): {[str(h) for h in header]}"
         )
 
     out = []
     for row in body:
         if row is None or all(c is None or c == "" for c in row):
             continue
-        date_val = _cell_to_str(row[cmap["date"]])
+        date_val = _cell_to_str(_safe_idx(row, cmap["date"]))
         if not date_val:
+            continue
+        # YYYY-MM-DD 형식이 아니면 skip (헤더 잔여 행이나 잘못된 행 한 번 더 거름)
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_val):
             continue
         out.append({
             "date":      date_val,
-            "personnel": _cell_to_str(row[cmap["personnel"]]) if "personnel" in cmap else "",
-            "activity":  _cell_to_str(row[cmap["activity"]])  if "activity"  in cmap else "",
-            "total":     _cell_to_int(row[cmap["total"]]),
-            "errors":    _cell_to_int(row[cmap["errors"]])    if "errors"    in cmap else 0,
-            "streak":    _cell_to_int(row[cmap["streak"]])    if "streak"    in cmap else 0,
-            "notes":     _cell_to_str(row[cmap["notes"]])     if "notes"     in cmap else "",
+            "personnel": _cell_to_str(_safe_idx(row, cmap.get("personnel"))),
+            "activity":  _cell_to_str(_safe_idx(row, cmap.get("activity"))),
+            "total":     max(0, _cell_to_int(_safe_idx(row, cmap["total"]))),
+            "errors":    max(0, _cell_to_int(_safe_idx(row, cmap.get("errors")))),
+            "streak":    max(0, _cell_to_int(_safe_idx(row, cmap.get("streak")))),
+            "notes":     _cell_to_str(_safe_idx(row, cmap.get("notes"))),
         })
     out.sort(key=lambda r: r["date"])
     return out
@@ -174,28 +222,30 @@ def _parse_daily(rows: list[list]) -> list[dict]:
 def _parse_errors(rows: list[list]) -> list[dict]:
     if not rows:
         return []
-    header, *body = rows
+    header_idx = _find_header_row(rows, ERROR_FIELD_ALIASES)
+    header = rows[header_idx]
+    body = rows[header_idx + 1:]
     cmap = _build_column_map(header, ERROR_FIELD_ALIASES)
     out = []
     for row in body:
         if row is None or all(c is None or c == "" for c in row):
             continue
-        no_val = _cell_to_int(row[cmap["no"]]) if "no" in cmap else 0
-        date_val = _cell_to_str(row[cmap["date"]]) if "date" in cmap else ""
+        no_val = _cell_to_int(_safe_idx(row, cmap.get("no")))
+        date_val = _cell_to_str(_safe_idx(row, cmap.get("date")))
         if not no_val and not date_val:
             continue
         out.append({
             "no":     no_val,
             "date":   date_val,
-            "time":   _cell_to_str(row[cmap["time"]])   if "time"   in cmap else "",
-            "cycle":  _cell_to_int(row[cmap["cycle"]])  if "cycle"  in cmap else 0,
-            "code":   _cell_to_str(row[cmap["code"]])   if "code"   in cmap else "",
-            "type":   _cell_to_str(row[cmap["type"]])   if "type"   in cmap else "",
-            "detail": _cell_to_str(row[cmap["detail"]]) if "detail" in cmap else "",
-            "cause":  _cell_to_str(row[cmap["cause"]])  if "cause"  in cmap else "",
-            "action": _cell_to_str(row[cmap["action"]]) if "action" in cmap else "",
-            "result": _cell_to_str(row[cmap["result"]]) if "result" in cmap else "",
-            "owner":  _cell_to_str(row[cmap["owner"]])  if "owner"  in cmap else "",
+            "time":   _cell_to_str(_safe_idx(row, cmap.get("time"))),
+            "cycle":  _cell_to_int(_safe_idx(row, cmap.get("cycle"))),
+            "code":   _cell_to_str(_safe_idx(row, cmap.get("code"))),
+            "type":   _cell_to_str(_safe_idx(row, cmap.get("type"))),
+            "detail": _cell_to_str(_safe_idx(row, cmap.get("detail"))),
+            "cause":  _cell_to_str(_safe_idx(row, cmap.get("cause"))),
+            "action": _cell_to_str(_safe_idx(row, cmap.get("action"))),
+            "result": _cell_to_str(_safe_idx(row, cmap.get("result"))),
+            "owner":  _cell_to_str(_safe_idx(row, cmap.get("owner"))),
         })
     out.sort(key=lambda r: r.get("no", 0))
     return out
@@ -306,7 +356,7 @@ def main():
     errors = _parse_errors(errors_rows)
 
     out = {
-        "generatedAt": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source":      src.name,
         "daily":       daily,
         "errors":      errors,
