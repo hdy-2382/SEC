@@ -1,11 +1,12 @@
 {
   "project": {
-    "name":       "S4 증축동",
+    "name": "S4 증축동",
     "department": "A-INFRA 기술팀",
-    "team":       "양희두, 김현일",
-    "startDate":  "2026-06-01",
-    "endDate":    "2026-09-30",
-    "target":     360,
-    "errorLimit": 3
+    "team": "양희두, 김현일",
+    "startDate": "2026-06-01",
+    "endDate": "2026-09-30",
+    "target": 360,
+    "errorLimit": 3,
+    "weeklyTargetExp": 2
   }
 }

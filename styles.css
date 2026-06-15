@@ -1414,6 +1414,33 @@ table.data td .badge.err {
   border-color: var(--navy);
 }
 
+/* ── 일자별 차트 주차 필터 탭 ───────────────── */
+.week-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 14px;
+}
+.wk-tab {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  background: var(--card-alt);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.wk-tab:hover { border-color: var(--navy); color: var(--navy); }
+.wk-tab.active {
+  background: var(--navy);
+  color: #FFFFFF;
+  border-color: var(--navy);
+}
+
 /* ── 에러 로그 ＋상세 버튼 ───────────────────── */
 .btn-more {
   font-family: var(--mono);

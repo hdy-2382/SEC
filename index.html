@@ -207,9 +207,10 @@
         <div class="chart-legend">
           <span><span class="dot"></span>MTBI 연속</span>
           <span><span class="dot dashed" style="border-top-color:#2E89D6"></span>목표</span>
-          <span><span class="dot" style="background:#8B2E1F"></span>에러 발생</span>
+          <span><span class="dot" style="width:12px; height:12px; border-radius:50%; background:#FFFFFF; border:2px solid #8B2E1F;"></span>에러 발생</span>
         </div>
       </div>
+      <div class="week-tabs" id="cum-week-tabs"></div>
       <svg id="chart-cum" width="100%" height="280" viewBox="0 0 1200 280" preserveAspectRatio="none"></svg>
       <div class="chart-foot"><button class="btn-scale" id="btn-scale-cum">Auto-Scale ⤢</button></div>
     </div>
@@ -218,13 +219,14 @@
       <div class="chart-header">
         <div>
           <h3>주차별 연속 사이클 추이</h3>
-          <div class="sub">Weekly Max Streak vs Target · 가로축 주차 / 세로축 최대 연속</div>
+          <div class="sub">Weekly Streak · 누적 연속 + 주차 연속 성공 · 목표 0→360 램프</div>
         </div>
         <div class="chart-legend">
-          <span><span class="dot" style="background:#2E89D6; width:14px; height:10px; border-radius:3px;"></span>주차별 최대 연속</span>
-          <span><span class="dot" style="background:#8B2E1F; width:11px; height:11px; border-radius:50%;"></span>리셋 발생 (↺)</span>
-          <span><span class="dot dashed" style="border-top-color:#1565C0"></span>목표 (2차 곡선)</span>
-          <span><span class="dot dashed" style="border-top-color:#9AA0A8"></span>선형 페이스</span>
+          <span><span class="dot" style="background:#1E4A7A; width:11px; height:11px; border-radius:2px;"></span>누적 연속</span>
+          <span><span class="dot" style="background:#3E9B6E; width:11px; height:11px; border-radius:2px;"></span>주차 연속 성공</span>
+          <span><span class="dot" style="background:#8B2E1F; width:11px; height:11px; border-radius:50%;"></span>리셋 (↺)</span>
+          <span><span class="dot dashed" style="border-top-color:#1565C0"></span>목표 (2차)</span>
+          <span><span class="dot dashed" style="border-top-color:#9AA0A8"></span>선형</span>
         </div>
       </div>
       <svg id="chart-weekly" width="100%" height="280" viewBox="0 0 1200 280" preserveAspectRatio="none"></svg>
