@@ -106,24 +106,43 @@ git push
 
 ## 매일 운영 — 데이터 갱신
 
-업체에서 새 xlsx를 받으면:
+### 업체에서 받는 파일 → 넣는 폴더
+| 받는 것 | 넣는 폴더 | 비고 |
+|---|---|---|
+| **엑셀 1개** (일일평가+에러로그) | **`data/raw/`** | 빌드가 이 폴더의 **최신(수정시각) xlsx** 자동 선택 → 이전 파일은 정리 권장 |
+| **에러 사진들** (선택) | **`data/errors/`** | 엑셀 `사진(파일명)` 칸 이름과 **파일명 정확히 일치** (다르면 "이미지 없음") |
+
+> 사진은 엑셀에 붙여넣지 않고 **파일명만 엑셀에 적고, 이미지 파일은 따로(zip 등) 받아** `data/errors/` 에 둡니다. 형식 예시는 [`samples/`](samples/) 참고.
+
+### 절차
 
 ```powershell
-# 1) 업체 파일을 data/raw/ 에 복사 (같은 이름이면 덮어쓰기 — 한 파일 누적 관리 권장)
+# 1) 업체 엑셀을 data/raw/ 에 복사 (이전 파일은 지우거나 한 파일로 누적 관리)
 copy <받은파일>.xlsx data\raw\
+
+# 1-2) 에러 사진이 있으면 data/errors/ 에 복사 (엑셀 기재명과 동일하게)
+copy ERR-001_1.jpg data\errors\
 
 # 2) JSON 변환
 python scripts\build_dashboard_json.py
 
 # 3) 커밋 & push
 git add data\
-git commit -m "data: 업체 5/28 데이터 수령"
+git commit -m "data: 업체 6/15 데이터 수령"
 git push
 ```
 
-1~2분 후 사내 GHE Pages URL에서 갱신된 대시보드 확인. 브라우저는 강제 새로고침(Ctrl+Shift+R) 권장.
+1~2분 후 Pages URL에서 갱신된 대시보드 확인. 브라우저는 강제 새로고침(Ctrl+Shift+R) 권장.
 
-> **단순 흐름 요약**: xlsx 복사 → `python` 한 줄 → `git push` 한 번. 끝.
+### 갱신 체크리스트
+- [ ] 엑셀을 **`data/raw/`** 에 두었다 (이전 파일 정리)
+- [ ] 에러 사진을 **`data/errors/`** 에 두었다 (파일명 = 엑셀 `사진(파일명)` 기재명과 동일)
+- [ ] `python scripts/build_dashboard_json.py` 실행 → 오류 없이 `daily/errors 건수` 출력 확인
+- [ ] `git add data/ && git commit && git push`
+
+> **단순 흐름 요약**: (엑셀→`raw/`, 사진→`errors/`) → `python` 한 줄 → `git push` 한 번. 끝.
+>
+> 업체 엑셀이 **DRM(보안)** 파일이면 openpyxl 실패 시 **xlwings 자동 폴백** — 이 경우 **Windows + Excel 설치** 필요.
 
 ## xlsx 양식 (참고)
 
