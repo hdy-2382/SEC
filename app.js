@@ -15,6 +15,9 @@ const $ = id => document.getElementById(id);
 // cache-bust 쿼리 (GitHub Pages CDN 캐시 우회 위해 timestamp 부여)
 const CACHE_BUST = `?t=${Date.now()}`;
 let DATA = { project: {}, daily: [], errors: [] };
+// 날짜별 1점 집계 시리즈 (하루 여러 행이면 그날 마지막 연속값으로 모음).
+// 일자별·주차별 연속 사이클 차트가 모두 이 시리즈에서 파생되어 서로 일치한다.
+let DAILY_BY_DATE = [];
 // 연속 사이클 추이 Y축 모드 — false: 기본 고정범위(0-400), true: 데이터 오토스케일
 let autoScale = { cum: false, weekly: false };
 
@@ -175,6 +178,20 @@ function render() {
     d.mtbiAttempt = mtbiAttempt;
     if (mtbiStreak > maxMtbiStreak) maxMtbiStreak = mtbiStreak;
   });
+
+  // ── 날짜별 1점 집계 ─────────────────────────────────────
+  // 하루에 여러 행이 있으면: total/errors는 합, mtbiStreak은 그날 마지막(=end-of-date),
+  // reset은 그날 중 한 번이라도 있었으면 true. (DATA.daily는 위에서 날짜순 정렬됨)
+  const _byDate = new Map();
+  DATA.daily.forEach(d => {
+    let e = _byDate.get(d.date);
+    if (!e) { e = { date: d.date, total: 0, errors: 0, mtbiStreak: 0, reset: false }; _byDate.set(d.date, e); }
+    e.total += d.total;
+    e.errors += d.errors;
+    e.mtbiStreak = d.mtbiStreak;   // 마지막 행 값으로 갱신 → 그날 마지막 연속값
+    if (d.reset) e.reset = true;
+  });
+  DAILY_BY_DATE = [..._byDate.values()];
 
   const lastDay = DATA.daily[DATA.daily.length - 1];
   const totalCycles = lastDay ? lastDay.cumTotal : 0;   // 전체 누적
@@ -385,11 +402,12 @@ function drawCumulativeChart() {
   const w = W - PAD.l - PAD.r;
   const h = H - PAD.t - PAD.b;
 
+  const series = DAILY_BY_DATE;   // 날짜별 1점 (하루 여러 행이면 그날 마지막 연속값)
   const target = Math.max(1, +DATA.project.target || 360);
-  const n = DATA.daily.length;
+  const n = series.length;
   // Y축 — 기본은 목표(360) 포함 고정 범위, [오토스케일] 켜면 데이터에 맞춰 자동.
   const auto = autoScale.cum;
-  const maxObservedStreak = DATA.daily.reduce((m, d) => Math.max(m, d.mtbiStreak || 0), 0);
+  const maxObservedStreak = series.reduce((m, d) => Math.max(m, d.mtbiStreak || 0), 0);
   let maxY, gridStep;
   if (auto) {
     const targetClose = target <= maxObservedStreak * 1.5;
@@ -444,7 +462,7 @@ function drawCumulativeChart() {
     // ── MTBI 라인: 시도(attempt)별로 segment 분할 (reset 지점에서 라인 끊김) ──
     const segments = [];
     let seg = [];
-    DATA.daily.forEach((d, i) => {
+    series.forEach((d, i) => {
       if (d.reset && seg.length > 0) {
         segments.push(seg);
         seg = [];
@@ -477,7 +495,7 @@ function drawCumulativeChart() {
     });
 
     // ── 현재 위치 마커 + 값 라벨 ───────────────────────────
-    const lastD = DATA.daily[n - 1];
+    const lastD = series[n - 1];
     const lx = xs(n - 1), ly = ys(lastD.mtbiStreak);
     svg.innerHTML += `<line x1="${lx}" x2="${lx}" y1="${ly}" y2="${PAD.t + h}" stroke="#1A2942" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"/>`;
     svg.innerHTML += `<circle cx="${lx}" cy="${ly}" r="8" fill="#1A2942" opacity="0.15"/>`;
@@ -498,7 +516,7 @@ function drawCumulativeChart() {
     const xTicks = n <= 8 ? [...Array(n).keys()] : [0, Math.floor(n*0.25), Math.floor(n*0.5), Math.floor(n*0.75), n - 1];
     xTicks.forEach(i => {
       const x = xs(i);
-      svg.innerHTML += `<text x="${x}" y="${H - PAD.b + 18}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmtDate(DATA.daily[i].date)}</text>`;
+      svg.innerHTML += `<text x="${x}" y="${H - PAD.b + 18}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="600" fill="#7B8087">${fmtDate(series[i].date)}</text>`;
     });
   }
 
@@ -527,7 +545,8 @@ function drawWeeklyStreakChart() {
   const ONE_DAY = 86400000;
   const startD = new Date(DATA.project.startDate);
   const endD = DATA.project.endDate ? new Date(DATA.project.endDate) : null;
-  const n = DATA.daily.length;
+  const series = DAILY_BY_DATE;   // 일자별 차트와 동일한 날짜별 1점 시리즈
+  const n = series.length;
 
   // 주차 인덱스(0-base): floor((평가일 - 시작일) / 7일)
   const weekOf = dateStr => {
@@ -537,7 +556,7 @@ function drawWeeklyStreakChart() {
 
   // 데이터가 존재하는 마지막 주차
   let lastDataWeek = 0;
-  DATA.daily.forEach(d => { lastDataWeek = Math.max(lastDataWeek, weekOf(d.date)); });
+  series.forEach(d => { lastDataWeek = Math.max(lastDataWeek, weekOf(d.date)); });
 
   // 전체 주차 수 W: 종료일이 있으면 평가 기간 전체, 없으면 데이터까지
   const totalDays = endD ? Math.round((endD - startD) / ONE_DAY) + 1 : (lastDataWeek + 1) * 7;
@@ -545,10 +564,12 @@ function drawWeeklyStreakChart() {
 
   // 주차별 최대 MTBI 연속값 집계 (데이터 있는 주만 값 보유)
   const weekMax = new Array(totalWeeks).fill(null);
-  DATA.daily.forEach(d => {
+  const weekReset = new Array(totalWeeks).fill(0);   // 그 주 리셋(한도 초과) 발생 횟수
+  series.forEach(d => {
     const wi = weekOf(d.date);
     if (wi < totalWeeks) {
       weekMax[wi] = Math.max(weekMax[wi] ?? 0, d.mtbiStreak || 0);
+      if (d.reset) weekReset[wi] += 1;
     }
   });
 
@@ -596,25 +617,46 @@ function drawWeeklyStreakChart() {
       continue;
     }
     const by = ys(val), bh = (PAD.t + h) - by;
+    const reset = weekReset[i] > 0;
     const reached = val >= quadTarget(i + 1);   // 그 주 2차 목표 도달 여부
-    svg.innerHTML += `<rect x="${bx}" y="${by}" width="${barW}" height="${bh}" rx="4" fill="url(#lineGrad)" opacity="${reached ? 1 : 0.78}"/>`;
+    // 리셋 있던 주는 빨간 테두리로 강조
+    const stroke = reset ? ` stroke="#8B2E1F" stroke-width="2"` : '';
+    svg.innerHTML += `<rect x="${bx}" y="${by}" width="${barW}" height="${bh}" rx="4" fill="url(#lineGrad)" opacity="${reached ? 1 : 0.78}"${stroke}/>`;
     svg.innerHTML += `<text x="${cx(i)}" y="${by - 7}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#0F2E54">${fmt(val)}</text>`;
+    // 리셋 마커 — 막대 상단 안쪽에 빨간 ↺ (있던 주만), 2회 이상이면 ×N
+    if (reset) {
+      const my = bh > 26 ? by + 14 : by - 14;
+      svg.innerHTML += `<circle cx="${cx(i)}" cy="${my}" r="9" fill="#8B2E1F"/>`;
+      svg.innerHTML += `<text x="${cx(i)}" y="${my + 4}" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#FFFFFF">↺</text>`;
+      if (weekReset[i] > 1) {
+        svg.innerHTML += `<text x="${cx(i) + 12}" y="${my - 5}" text-anchor="start" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="10" font-weight="700" fill="#8B2E1F">×${weekReset[i]}</text>`;
+      }
+    }
   }
 
-  // 목표 곡선 — 2차(메인) + 선형(옅게). 주차 1..W의 중심점 기준.
+  // 목표 곡선 — 2차(메인) + 선형(옅게).
+  // 상한 위로 올라가는 부분은 '클램프 후 스무딩'하면 곡선이 깨지므로(평평+오버슈트),
+  // 실제 값으로 그리되 플롯 영역으로 clip 해서 위쪽은 자연스럽게 잘리도록 한다.
+  svg.innerHTML += `<defs><clipPath id="weeklyPlotClip"><rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${h}"/></clipPath></defs>`;
+  const capY = val => Math.max(ys(val), PAD.t - h);   // 상한 위로 최대 1플롯높이까지만 (과한 오버슈트 방지)
   const quadPts = [], linePts = [];
   for (let i = 0; i < totalWeeks; i++) {
-    quadPts.push([cx(i), ys(Math.min(quadTarget(i + 1), maxY))]);
-    linePts.push([cx(i), ys(Math.min(lineTarget(i + 1), maxY))]);
+    quadPts.push([cx(i), capY(quadTarget(i + 1))]);
+    linePts.push([cx(i), capY(lineTarget(i + 1))]);
   }
   if (totalWeeks >= 2) {
+    let curves = '';
     // 선형 페이스 — 옅은 회색 점선
-    svg.innerHTML += `<path d="${smoothPath(linePts)}" fill="none" stroke="#9AA0A8" stroke-width="2" stroke-dasharray="5,5" opacity="0.8"/>`;
+    curves += `<path d="${smoothPath(linePts)}" fill="none" stroke="#9AA0A8" stroke-width="2" stroke-dasharray="5,5" opacity="0.8"/>`;
     // 2차 목표 — 파란 점선 (메인)
-    svg.innerHTML += `<path d="${smoothPath(quadPts)}" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-dasharray="8,5" filter="url(#lineGlow)"/>`;
+    curves += `<path d="${smoothPath(quadPts)}" fill="none" stroke="#1565C0" stroke-width="2.6" stroke-dasharray="8,5" filter="url(#lineGlow)"/>`;
+    // 점은 플롯 안에 들어오는 주차만 (상한 위는 표시 안 함)
     quadPts.forEach(([px, py]) => {
-      svg.innerHTML += `<circle cx="${px}" cy="${py}" r="3.2" fill="#FFFFFF" stroke="#1565C0" stroke-width="2"/>`;
+      if (py >= PAD.t && py <= PAD.t + h) {
+        curves += `<circle cx="${px}" cy="${py}" r="3.2" fill="#FFFFFF" stroke="#1565C0" stroke-width="2"/>`;
+      }
     });
+    svg.innerHTML += `<g clip-path="url(#weeklyPlotClip)">${curves}</g>`;
   }
 
   // TARGET 라벨 (우상단, 최종 목표치)
@@ -646,8 +688,10 @@ function drawWeeklyStreakChart() {
       const tag = onTrack
         ? `<span class="good">목표 상회</span>`
         : `<span class="bad">목표 미달</span>`;
+      const totalResets = weekReset.reduce((s, v) => s + v, 0);
+      const resetTxt = totalResets > 0 ? ` · <span class="bad">리셋 ${totalResets}회</span>(↺ 표시 주차)` : '';
       hint.innerHTML = `${tag} · <strong>${curWeek}주차</strong> 최대 연속 <strong>${fmt(curVal)}</strong>회 ` +
-        `· 2차 목표 ${fmt(Math.round(goalNow))}회 (전체 ${totalWeeks}주 · 최종 목표 ${fmt(target)}회)`;
+        `· 2차 목표 ${fmt(Math.round(goalNow))}회 (전체 ${totalWeeks}주 · 최종 목표 ${fmt(target)}회)${resetTxt}`;
     }
   }
 }
