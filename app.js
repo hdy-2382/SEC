@@ -589,7 +589,8 @@ function drawWeeklyStreakChart() {
     if (wi < totalWeeks) cumWeek[wi] = d.mtbiStreak || 0;
   });
 
-  // ② 주차 연속 성공 — 매주 0에서 시작, 에러 한도 초과 시 0으로, 그 주 최대 연속.
+  // ② 주차 연속 성공 — 매주 0에서 시작, 에러 한도 초과 시 0으로 리셋.
+  // 리셋이 있던 주는 '최댓값'이 아니라 '리셋 이후 현재(주말 시점) 연속'을 반영한다.
   const perWeek = new Array(totalWeeks).fill(null);
   const weekReset = new Array(totalWeeks).fill(0);
   let _cw = -1, _acc = 0;
@@ -599,7 +600,7 @@ function drawWeeklyStreakChart() {
     if (wi !== _cw) { _cw = wi; _acc = 0; }
     if (d.reset) { _acc = 0; weekReset[wi] += 1; }
     else { _acc += (d.total || 0); }
-    perWeek[wi] = Math.max(perWeek[wi] ?? 0, _acc);
+    perWeek[wi] = _acc;   // 최신값(그 주 마지막 행 기준) — 리셋되면 그 이후 누적만 반영
   });
 
   // 목표 램프 (0→target)
