@@ -14,11 +14,17 @@ dashboard-project/
 │   ├── config.json                     ← 프로젝트 설정 (수동 편집, 거의 변경 안 함)
 │   ├── dashboard.json                  ← 일일·에러 데이터 (로컬 빌드로 생성)
 │   ├── vendor_template.xlsx            ← 업체 배포용 표준 양식 (로컬 빌드로 생성)
+│   ├── errors/                         ← 에러 첨부 사진 (업체가 보낸 파일을 여기에 둠)
+│   │   └── <에러코드_순번>.jpg         ← 예) ERR-001_1.jpg  (에러로그 '사진(파일명)' 과 이름 일치)
 │   └── raw/
 │       └── <업체-원본>.xlsx            ← 업체가 보내준 엑셀 원본
+├── samples/                            ← 업체에게 보여줄 "제출 샘플" (로컬 빌드로 생성)
+│   ├── 제출샘플_양산평가.xlsx           ← 채워진 예시 엑셀
+│   └── photos/                         ← 샘플 사진 (파일명이 엑셀과 일치)
 └── scripts/
     ├── build_dashboard_json.py         ← xlsx → dashboard.json 변환
-    ├── generate_vendor_template.py     ← 업체 양식 xlsx 생성
+    ├── generate_vendor_template.py     ← 업체 양식 xlsx 생성 (빈 양식)
+    ├── generate_sample_submission.py   ← 업체 제출 샘플(채워진 엑셀+사진) 생성
     └── requirements.txt
 ```
 
@@ -145,6 +151,18 @@ git push
 - PM은 받은 이미지 파일을 **`data/errors/`** 폴더에 같은 이름으로 넣고 함께 커밋합니다.
   대시보드는 `data/errors/<파일명>` 경로로 로드 → 클릭하면 라이트박스로 확대됩니다.
   (파일이 아직 없으면 모달에 "이미지 없음" 으로 표시되고, 두 컬럼 모두 비어 있으면 버튼 자체가 안 보입니다.)
+
+#### 업체 제출 샘플
+업체에게 "이대로 따라 보내면 된다"고 보여줄 샘플을 자동 생성합니다.
+
+```powershell
+python scripts/generate_sample_submission.py
+```
+
+- `samples/제출샘플_양산평가.xlsx` — 일일평가·에러로그가 채워진 예시 (상세설명·사진 파일명 포함, 시각은 `h:mm` 서식)
+- `samples/photos/` — 파일명이 에러로그와 일치하는 샘플 사진 (`ERR-001_1.jpg` 등)
+
+업체에는 **이 엑셀 + photos 폴더**를 함께 전달해, 「엑셀엔 파일명만 / 사진은 따로(zip)」 방식을 그대로 따라 하도록 안내하면 됩니다.
 
 **Tip**: 양식이 처음과 다르더라도 [build_dashboard_json.py](scripts/build_dashboard_json.py) 상단의 `DAILY_FIELD_ALIASES`, `ERROR_FIELD_ALIASES` 사전에 별칭을 추가하면 그대로 인식됩니다.
 
