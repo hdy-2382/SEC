@@ -15,6 +15,8 @@ const $ = id => document.getElementById(id);
 // cache-bust 쿼리 (GitHub Pages CDN 캐시 우회 위해 timestamp 부여)
 const CACHE_BUST = `?t=${Date.now()}`;
 let DATA = { project: {}, daily: [], errors: [] };
+// 연속 사이클 추이 Y축 모드 — false: 기본 고정범위(0-400), true: 데이터 오토스케일
+let autoScale = { cum: false, weekly: false };
 
 async function loadData() {
   try {
@@ -106,6 +108,18 @@ function drawMiniBar(id, pct, color = '#2E89D6') {
   svg.innerHTML =
     `<rect x="0" y="12" width="100" height="8" rx="4" fill="#E8E4D8"/>` +
     `<rect x="0" y="12" width="${p}" height="8" rx="4" fill="${color}"/>`;
+}
+
+// 축 자동 스케일 — 데이터 최댓값에 맞춘 보기 좋은 상한·격자 간격(1·2·5·10 배수).
+// minStep: 정수 카운트 축에서 분수 간격(2.5 등)을 막기 위한 최소 간격.
+function niceScale(maxVal, ticks = 5, minStep = 0) {
+  maxVal = Math.max(maxVal, minStep || 1);
+  const rawStep = maxVal / ticks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  let step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  if (minStep) step = Math.max(step, minStep);
+  return { max: Math.ceil(maxVal / step) * step, step };
 }
 
 /* ─── 메인 렌더링 ──────────────────────── */
@@ -372,36 +386,59 @@ function drawCumulativeChart() {
   const h = H - PAD.t - PAD.b;
 
   const target = Math.max(1, +DATA.project.target || 360);
-  // Y축 — target 의 ~110% 또는 관측된 최대 streak 의 ~110% 중 큰 값. config 변경에 자동 적응.
-  const maxObservedStreak = DATA.daily.reduce((m, d) => Math.max(m, d.mtbiStreak || 0), 0);
-  const maxY = Math.max(Math.ceil(target * 1.1 / 50) * 50, Math.ceil(maxObservedStreak * 1.1 / 50) * 50, 100);
   const n = DATA.daily.length;
+  // Y축 — 기본은 목표(360) 포함 고정 범위, [오토스케일] 켜면 데이터에 맞춰 자동.
+  const auto = autoScale.cum;
+  const maxObservedStreak = DATA.daily.reduce((m, d) => Math.max(m, d.mtbiStreak || 0), 0);
+  let maxY, gridStep;
+  if (auto) {
+    const targetClose = target <= maxObservedStreak * 1.5;
+    const rawMax = targetClose ? Math.max(maxObservedStreak * 1.15, target * 1.05)
+                               : Math.max(maxObservedStreak * 1.25, 5);
+    ({ max: maxY, step: gridStep } = niceScale(rawMax, 5, 1));
+  } else {
+    maxY = Math.max(Math.ceil(target * 1.1 / 50) * 50, Math.ceil(maxObservedStreak * 1.1 / 50) * 50, 100);
+    gridStep = 50;
+  }
+  const targetInRange = target <= maxY;
 
   const xs = i => PAD.l + (n > 1 ? (i / (n - 1)) * w : w / 2);
   const ys = v => PAD.t + h - (v / maxY) * h;
 
-  // ── 배경 banded zones: TARGET 위쪽(달성존), 아래쪽(진행존) ─────
+  // ── 배경 zones: 목표가 범위 안이면 위/아래로 분할, 밖이면 전체를 진행존 ──
   const tgtY = ys(target);
-  svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${tgtY - PAD.t}" fill="url(#zoneTargetGrad)"/>`;
-  svg.innerHTML += `<rect x="${PAD.l}" y="${tgtY}" width="${w}" height="${PAD.t + h - tgtY}" fill="url(#zoneSafeGrad)"/>`;
+  if (targetInRange) {
+    svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${tgtY - PAD.t}" fill="url(#zoneTargetGrad)"/>`;
+    svg.innerHTML += `<rect x="${PAD.l}" y="${tgtY}" width="${w}" height="${PAD.t + h - tgtY}" fill="url(#zoneSafeGrad)"/>`;
+  } else {
+    svg.innerHTML += `<rect x="${PAD.l}" y="${PAD.t}" width="${w}" height="${h}" fill="url(#zoneSafeGrad)"/>`;
+  }
 
-  // ── Y축 grid: minor 50 단위(옅음) + major 100 단위(진함) + 라벨 ────
-  for (let v = 0; v <= maxY; v += 50) {
+  // ── Y축 grid + 라벨 (기본: 50 minor/100 major · 오토: nice step 전부 라벨) ──
+  for (let v = 0; v <= maxY + 1e-6; v += gridStep) {
     const y = ys(v);
-    const isMajor = v % 100 === 0;
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="${isMajor ? '#D6D2C4' : '#EDE9DC'}" stroke-width="${isMajor ? 1 : 1}"/>`;
-    if (isMajor) {
-      svg.innerHTML += `<text x="${PAD.l - 10}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#3D4147">${fmt(v)}</text>`;
+    const major = auto || (Math.round(v) % 100 === 0);
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="${major ? '#D6D2C4' : '#EDE9DC'}" stroke-width="1"/>`;
+    if (major) {
+      svg.innerHTML += `<text x="${PAD.l - 10}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#3D4147">${fmt(Math.round(v))}</text>`;
     }
   }
 
-  // ── TARGET 라인 ────────────────────────────────────────────
-  svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${tgtY}" y2="${tgtY}" stroke="#2E89D6" stroke-width="2" stroke-dasharray="8,5" opacity="0.85"/>`;
-  svg.innerHTML += `
-    <g transform="translate(${PAD.l + 6}, ${tgtY - 9})">
-      <rect x="0" y="-12" width="98" height="20" rx="10" fill="#2E89D6"/>
-      <text x="49" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.08em">TARGET ${fmt(target)}</text>
-    </g>`;
+  // ── TARGET — 범위 안이면 라인, 벗어나면 우상단 '목표 N ↑' 배지 ─────
+  if (targetInRange) {
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${tgtY}" y2="${tgtY}" stroke="#2E89D6" stroke-width="2" stroke-dasharray="8,5" opacity="0.85"/>`;
+    svg.innerHTML += `
+      <g transform="translate(${PAD.l + 6}, ${tgtY - 9})">
+        <rect x="0" y="-12" width="98" height="20" rx="10" fill="#2E89D6"/>
+        <text x="49" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.08em">TARGET ${fmt(target)}</text>
+      </g>`;
+  } else {
+    svg.innerHTML += `
+      <g transform="translate(${W - PAD.r - 150}, ${PAD.t + 2})">
+        <rect x="0" y="0" width="150" height="22" rx="11" fill="#2E89D6"/>
+        <text x="75" y="15" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.04em">TARGET ${fmt(target)} ↑ (above)</text>
+      </g>`;
+  }
 
   if (n > 0) {
     // ── MTBI 라인: 시도(attempt)별로 segment 분할 (reset 지점에서 라인 끊김) ──
@@ -519,22 +556,33 @@ function drawWeeklyStreakChart() {
   const quadTarget = w1 => target * Math.pow(w1 / totalWeeks, TARGET_EXP);  // w1 = 1..W
   const lineTarget = w1 => target * (w1 / totalWeeks);
 
-  // Y 스케일 — target·관측 최대 중 큰 값의 110%
+  // Y 스케일 — 기본은 목표(360) 포함 고정, [오토스케일] 켜면 데이터에 맞춰 자동.
+  const auto = autoScale.weekly;
   const maxObserved = weekMax.reduce((m, v) => Math.max(m, v || 0), 0);
-  const maxY = Math.max(Math.ceil(target * 1.1 / 50) * 50, Math.ceil(maxObserved * 1.1 / 50) * 50, 100);
+  let maxY, gridStep;
+  if (auto) {
+    const targetToDate = quadTarget(lastDataWeek + 1);   // 현재 주차의 2차 목표값
+    const targetClose = target <= Math.max(maxObserved, 1) * 1.5;
+    const rawMax = targetClose ? Math.max(maxObserved * 1.15, target * 1.05)
+                               : Math.max(maxObserved * 1.25, targetToDate * 1.4, 5);
+    ({ max: maxY, step: gridStep } = niceScale(rawMax, 5, 1));
+  } else {
+    maxY = Math.max(Math.ceil(target * 1.1 / 50) * 50, Math.ceil(maxObserved * 1.1 / 50) * 50, 100);
+    gridStep = 50;
+  }
 
   const slot = w / totalWeeks;
   const barW = Math.min(54, slot * 0.6);
   const cx = i => PAD.l + slot * (i + 0.5);   // i = 0..W-1
   const ys = v => PAD.t + h - (v / maxY) * h;
 
-  // Y축 grid + 라벨 (50 minor / 100 major)
-  for (let v = 0; v <= maxY; v += 50) {
+  // Y축 grid + 라벨 (기본: 50 minor/100 major · 오토: nice step 전부 라벨)
+  for (let v = 0; v <= maxY + 1e-6; v += gridStep) {
     const y = ys(v);
-    const isMajor = v % 100 === 0;
-    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="${isMajor ? '#D6D2C4' : '#EDE9DC'}" stroke-width="1"/>`;
-    if (isMajor) {
-      svg.innerHTML += `<text x="${PAD.l - 10}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#3D4147">${fmt(v)}</text>`;
+    const major = auto || (Math.round(v) % 100 === 0);
+    svg.innerHTML += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" stroke="${major ? '#D6D2C4' : '#EDE9DC'}" stroke-width="1"/>`;
+    if (major) {
+      svg.innerHTML += `<text x="${PAD.l - 10}" y="${y + 4}" text-anchor="end" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="12" font-weight="700" fill="#3D4147">${fmt(Math.round(v))}</text>`;
     }
   }
 
@@ -573,7 +621,7 @@ function drawWeeklyStreakChart() {
   svg.innerHTML += `
     <g transform="translate(${W - PAD.r - 96}, ${PAD.t + 4})">
       <rect x="0" y="-12" width="96" height="20" rx="10" fill="#1565C0"/>
-      <text x="48" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">목표 ${fmt(target)}</text>
+      <text x="48" y="2" text-anchor="middle" font-family="'Malgun Gothic', '맑은 고딕', monospace" font-size="11" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">TARGET ${fmt(target)}</text>
     </g>`;
 
   // X축 라벨 — 주차 번호 (1,2,3,…). 주차가 많으면 일부만 표기.
@@ -997,6 +1045,20 @@ document.querySelectorAll('.tab').forEach(t => {
     $('panel-' + t.dataset.tab).classList.add('active');
   });
 });
+
+/* ─── 연속 사이클 추이 Y축 오토스케일 토글 ───────── */
+function _wireScaleToggle(btnId, key, redraw) {
+  const btn = $(btnId);
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    autoScale[key] = !autoScale[key];
+    btn.classList.toggle('active', autoScale[key]);
+    btn.textContent = autoScale[key] ? 'Fixed Range ⤡' : 'Auto-Scale ⤢';
+    redraw();
+  });
+}
+_wireScaleToggle('btn-scale-cum', 'cum', drawCumulativeChart);
+_wireScaleToggle('btn-scale-weekly', 'weekly', drawWeeklyStreakChart);
 
 /* ─── 데이터 입력 모달 ───────────────────── */
 $('btn-load').addEventListener('click', () => $('modal').classList.add('active'));

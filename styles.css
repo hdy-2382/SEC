@@ -1388,6 +1388,32 @@ table.data td .badge.err {
 }
 .modal.modal-lg { width: 860px; }
 
+/* ── 차트 하단 우측 컨트롤 (오토스케일 토글) ──────── */
+.chart-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.btn-scale {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--navy);
+  background: rgba(46, 137, 214, 0.08);
+  border: 1px solid rgba(46, 137, 214, 0.35);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-scale:hover { background: rgba(46, 137, 214, 0.18); border-color: var(--navy); }
+.btn-scale.active {
+  background: var(--navy);
+  color: #FFFFFF;
+  border-color: var(--navy);
+}
+
 /* ── 에러 로그 ＋상세 버튼 ───────────────────── */
 .btn-more {
   font-family: var(--mono);
