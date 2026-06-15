@@ -18,7 +18,11 @@ build_dashboard_json.py
 
 기대 컬럼:
   일일평가 시트  : 평가일, 입실인원, 주평가내용, 일일평가, 일일에러, 연속성공, 비고
-  에러로그 시트  : No, 발생일, 시각, 회차, 코드, 유형, 상세, 원인, 조치, 결과, 담당
+  에러로그 시트  : No, 발생일, 시각, 회차, 코드, 유형, 상세, 원인, 조치, 결과, 삼성 담당자, 업체 담당자
+
+'시각' 처리:
+  업체가 custom h:mm 서식으로 시각을 보내면 openpyxl이 시간을 '하루의 분수'(0~1 float)로
+  넘겨 0.xxxxx 형태로 깨질 수 있다. _cell_to_time() 가 이를 h:mm 으로 복원한다.
 """
 
 from __future__ import annotations
@@ -56,7 +60,15 @@ ERROR_FIELD_ALIASES = {
     "cause":  ["원인", "cause"],
     "action": ["조치", "조치사항", "action"],
     "result": ["결과", "조치결과", "result"],
-    "owner":  ["담당", "담당자", "owner"],
+    # 삼성 담당자 / 업체 담당자 — 둘 다 "담당"을 포함하므로 구체적인 후보를 먼저 둔다.
+    # owner_sec(삼성)를 owner(업체)보다 먼저 매핑해 교차 매칭을 방지.
+    "owner_sec": ["삼성담당자", "삼성담당", "삼성", "secowner", "sec"],
+    "owner":     ["업체담당자", "업체담당", "협력사담당", "업체", "협력사", "vendor", "담당", "owner"],
+    # 업체가 입력하는 확장 자료 (선택) — "더 상세" 모달에서만 표시.
+    #   detail_more : 긴 설명 텍스트
+    #   images      : 사진 파일명(쉼표/줄바꿈 구분). 실제 파일은 data/errors/ 폴더에 둔다.
+    "detail_more": ["상세설명", "추가상세", "상세자료", "추가설명", "detailmore"],
+    "images":      ["사진", "이미지", "첨부파일", "첨부", "파일명", "image", "photo", "attachment"],
 }
 
 DAILY_SHEET_KEYWORDS  = ["일일평가", "일일", "daily"]
@@ -178,6 +190,51 @@ def _cell_to_int(v) -> int:
         return 0
 
 
+_TIME_TEXT_RE = re.compile(r"^\s*(?:(?:오전|오후|am|pm)\s*)?(\d{1,2})\s*[:시]\s*(\d{1,2})")
+
+
+def _cell_to_time(v) -> str:
+    """에러로그 '시각' 셀 → 'h:mm' 문자열.
+    업체가 custom h:mm 서식으로 보내면 openpyxl이 시간을 '하루의 분수'(0~1 float)로
+    넘겨 셀 값이 0.xxxxx 로 깨지는 문제를 보정한다. (업체 입력 방식 h:mm 에 맞춰 복원)
+    """
+    if v is None or v == "":
+        return ""
+    if isinstance(v, datetime):
+        return f"{v.hour}:{v.minute:02d}"
+    if isinstance(v, time):
+        return f"{v.hour}:{v.minute:02d}"
+    # 숫자 — Excel 시간 직렬값. 정수부=날짜, 소수부=하루 중 비율. 소수부만 분으로 환산.
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        try:
+            frac = float(v) % 1.0
+        except (OverflowError, ValueError):
+            frac = None
+        if frac is not None:
+            total_min = round(frac * 1440) % 1440   # 분 단위 반올림 + 자정 롤오버 보정
+            h, m = divmod(total_min, 60)
+            return f"{h}:{m:02d}"
+    # 문자열 — 이미 'HH:MM'/'오후 2:32' 등으로 들어온 경우 h:mm 로 정리해서 반환
+    s = str(v).strip()
+    mt = _TIME_TEXT_RE.match(s)
+    if mt:
+        h = int(mt.group(1))
+        ampm = re.match(r"^\s*(오후|pm)", s, re.IGNORECASE)
+        if ampm and h < 12:
+            h += 12
+        return f"{h}:{int(mt.group(2)):02d}"
+    return s
+
+
+def _split_images(v) -> list[str]:
+    """'사진' 셀 → 파일명 리스트. 쉼표/줄바꿈/세미콜론 구분. 빈 값은 제거.
+    실제 이미지 파일은 data/errors/ 폴더에 같은 이름으로 둔다(프론트가 그 경로로 로드)."""
+    if v is None:
+        return []
+    parts = re.split(r"[,\n;]+", str(v))
+    return [p.strip() for p in parts if p.strip()]
+
+
 def _safe_idx(row: list, idx: int):
     """row가 짧으면 None 반환 — vendor가 컬럼 수를 다르게 보낼 때 IndexError 방지."""
     return row[idx] if idx is not None and 0 <= idx < len(row) else None
@@ -235,17 +292,21 @@ def _parse_errors(rows: list[list]) -> list[dict]:
         if not no_val and not date_val:
             continue
         out.append({
-            "no":     no_val,
-            "date":   date_val,
-            "time":   _cell_to_str(_safe_idx(row, cmap.get("time"))),
-            "cycle":  _cell_to_int(_safe_idx(row, cmap.get("cycle"))),
-            "code":   _cell_to_str(_safe_idx(row, cmap.get("code"))),
-            "type":   _cell_to_str(_safe_idx(row, cmap.get("type"))),
-            "detail": _cell_to_str(_safe_idx(row, cmap.get("detail"))),
-            "cause":  _cell_to_str(_safe_idx(row, cmap.get("cause"))),
-            "action": _cell_to_str(_safe_idx(row, cmap.get("action"))),
-            "result": _cell_to_str(_safe_idx(row, cmap.get("result"))),
-            "owner":  _cell_to_str(_safe_idx(row, cmap.get("owner"))),
+            "no":        no_val,
+            "date":      date_val,
+            "time":      _cell_to_time(_safe_idx(row, cmap.get("time"))),
+            "cycle":     _cell_to_int(_safe_idx(row, cmap.get("cycle"))),
+            "code":      _cell_to_str(_safe_idx(row, cmap.get("code"))),
+            "type":      _cell_to_str(_safe_idx(row, cmap.get("type"))),
+            "detail":    _cell_to_str(_safe_idx(row, cmap.get("detail"))),
+            "cause":     _cell_to_str(_safe_idx(row, cmap.get("cause"))),
+            "action":    _cell_to_str(_safe_idx(row, cmap.get("action"))),
+            "result":    _cell_to_str(_safe_idx(row, cmap.get("result"))),
+            "owner_sec": _cell_to_str(_safe_idx(row, cmap.get("owner_sec"))),
+            "owner":     _cell_to_str(_safe_idx(row, cmap.get("owner"))),
+            # 확장 자료(선택): 더 상세 모달에서만 사용
+            "detailMore": _cell_to_str(_safe_idx(row, cmap.get("detail_more"))),
+            "images":     _split_images(_safe_idx(row, cmap.get("images"))),
         })
     out.sort(key=lambda r: r.get("no", 0))
     return out

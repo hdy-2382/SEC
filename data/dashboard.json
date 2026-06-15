@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-01T03:09:14Z",
+  "generatedAt": "2026-06-15T05:12:27Z",
   "source": "260601_SEC양산평가.xlsx",
   "daily": [
     {
@@ -213,7 +213,10 @@
       "cause": "조도 변화로 카메라 노출값 부적합 추정",
       "action": "조명 LUX 재조정 + 비전 알고리즘 threshold 보정",
       "result": "정상복귀",
-      "owner": "박영희"
+      "owner_sec": "",
+      "owner": "박영희",
+      "detailMore": "",
+      "images": []
     },
     {
       "no": 2,
@@ -226,7 +229,10 @@
       "cause": "부품 표면 코팅 편차 추정",
       "action": "그리퍼 압력 +5% 조정, 부품 표면 사전 검사 단계 추가",
       "result": "정상복귀",
-      "owner": "홍길동"
+      "owner_sec": "",
+      "owner": "홍길동",
+      "detailMore": "",
+      "images": []
     }
   ]
 }
