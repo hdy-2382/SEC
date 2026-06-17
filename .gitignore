@@ -18,3 +18,6 @@ venv/
 
 # Node (혹시 모를 도구 사용 시)
 node_modules/
+
+# 공개 배포 스크립트 (실명 매핑 포함 — 추적 금지)
+scripts/publish_public.sh
