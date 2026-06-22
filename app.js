@@ -213,9 +213,10 @@ const RES_BADGE = { '검증완료': 'b-ok', '검증중': 'b-prog', '조치중': 
 
 /* ── 사이드 내비게이션 (라벨은 ui.nav, 아이콘/링크는 고정) ── */
 const NAV = [
-  { href: '#s-status', icon: '▦', key: 'status', active: true },
+  { href: '#all', icon: '▤', key: 'all', label: '전체 보기', active: true },
+  { href: '#s-status', icon: '▦', key: 'status' },
   { href: '#s0', icon: '▣', key: 'summary' },
-  { group: 'stepsGroup' },
+  { group: 'stepsGroup', href: '#s-steps' },
   { href: '#s1', icon: '1', key: 'step1' },
   { href: '#s2', icon: '2', key: 'step2' },
   { href: '#s3', icon: '3', key: 'step3' },
@@ -226,10 +227,13 @@ const NAV = [
   { href: '#s-info', icon: 'ℹ', key: 'info' },
 ];
 function buildNav() {
-  return NAV.map(it => it.group
-    ? `<div class="t">${esc(T('nav.' + it.group))}</div>`
-    : `<a href="${it.href}"${it.active ? ' class="active"' : ''}><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key))}</a>`
-  ).join('');
+  return NAV.map(it => {
+    if (it.group)   // 그룹 라벨: href 있으면 클릭 가능(해당 그룹 전체 보기), 없으면 단순 라벨
+      return it.href
+        ? `<a href="${it.href}" class="t t-group">${esc(T('nav.' + it.group))}</a>`
+        : `<div class="t">${esc(T('nav.' + it.group))}</div>`;
+    return `<a href="${it.href}"${it.active ? ' class="active"' : ''}><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}</a>`;
+  }).join('');
 }
 
 /* ── 섹션 렌더러 ── */
@@ -609,6 +613,44 @@ function applyShellText() {
   const nav = $('nav'); if (nav) nav.innerHTML = buildNav();
 }
 
+/* ── 단일 섹션 뷰: 탭을 누르면 그 내용만 표시 (보고용) ──
+   #s1~#s6 은 #s-steps 컨테이너 안에 있으므로, step 탭은 #s-steps 를 켜고 그 안에서 해당 step 만 남긴다. */
+const TOP_SECTIONS = ['s-status', 's0', 's-steps', 's-info'];
+let activeHref = '#all';
+function showOnly(href) {
+  const id = (href || '#all').replace('#', '');
+  if (id === 'all') {                       // 전체 보기: 모든 섹션 + 6단계 전부
+    showAllSections();
+  } else {
+    // step 탭은 #s-steps 안에서 해당 step만 / 그룹(#s-steps) 클릭은 6단계 전부
+    const isStep = /^s[1-6]$/.test(id);
+    const topId = (isStep || id === 's-steps') ? 's-steps' : id;
+    TOP_SECTIONS.forEach(t => { const el = $(t); if (el) el.style.display = (t === topId) ? '' : 'none'; });
+    document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = (!isStep || s.id === id) ? '' : 'none'; });
+  }
+  document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === href));
+  activeHref = href;
+  scrollTo(0, 0);
+}
+function showAllSections() {   // 인쇄(PDF 리포트) 시에는 전체를 펼친다
+  TOP_SECTIONS.forEach(t => { const el = $(t); if (el) el.style.display = ''; });
+  document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = ''; });
+}
+function initRouter() {
+  const valid = NAV.filter(it => it.href).map(it => it.href);
+  document.querySelectorAll('.nav a').forEach(a =>
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      e.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', href);
+      showOnly(href);
+    }));
+  showOnly(valid.includes(location.hash) ? location.hash : '#all');
+  addEventListener('hashchange', () => { if (valid.includes(location.hash)) showOnly(location.hash); });
+  addEventListener('beforeprint', showAllSections);
+  addEventListener('afterprint', () => showOnly(activeHref));
+}
+
 /* ── 마운트 ── */
 function mount() {
   const C = DATA.config || {}, m = DATA.metrics, f = DATA.failure, acc = DATA.acceptance, op = DATA.opReliability;
@@ -621,13 +663,7 @@ function mount() {
   $('s-steps').innerHTML = renderSteps(C, m, f, acc, op);
   $('s-info').innerHTML = renderInfo(C, m);
 
-  const links = [...document.querySelectorAll('.nav a')];
-  const secs = links.map(a => document.querySelector(a.getAttribute('href')));
-  addEventListener('scroll', () => {
-    let idx = secs.findIndex((s, k) => s && s.offsetTop - 130 <= scrollY && (!secs[k + 1] || secs[k + 1].offsetTop - 130 > scrollY));
-    links.forEach(l => l.classList.remove('active'));
-    if (idx >= 0) links[idx].classList.add('active');
-  }, { passive: true });
+  initRouter();   // 탭 = 해당 섹션만 표시 (단일 섹션 뷰). 인쇄 시에는 전체 펼침.
 }
 
 /* dashboard.json(데이터) + config.json(화면 글자 ui)를 함께 로드.
