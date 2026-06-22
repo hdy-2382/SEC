@@ -101,6 +101,7 @@
         "_help": "사진/글자 비율 직접 조절. 값만 바꾸면 화면에 바로 반영됨",
         "lineImageHeight": 300,
         "lineImageFit": "contain",
+        "swImageHeight": 240,
         "swPhotoRatio": 3,
         "swContentRatio": 1,
         "swImageFit": "contain"

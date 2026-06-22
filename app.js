@@ -261,6 +261,7 @@ function renderStatus(C, m) {
   // 사진/글자 비율 — config(ui.status.layout)에서 직접 조절
   const Lh = T('status.layout.lineImageHeight', 300);
   const Lfit = T('status.layout.lineImageFit', 'contain');
+  const swH = T('status.layout.swImageHeight', 240);
   const swP = T('status.layout.swPhotoRatio', 3);
   const swC = T('status.layout.swContentRatio', 1);
   const swFit = T('status.layout.swImageFit', 'contain');
@@ -284,7 +285,7 @@ function renderStatus(C, m) {
         <div class="row-flex"><h3>${esc(T('status.swTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.swBadge', { n: swAvg }))}</span></div>
         <div class="psub">${esc(T('status.swSub'))}</div>
         <div class="sw-2col" style="grid-template-columns:${swP}fr ${swC}fr">
-          <div class="sw-photo"><img src="${esc(T('status.swImage', 'data/assets/sw_status.png'))}" alt="${esc(T('status.swTitle'))}" style="object-fit:${esc(swFit)}" onerror="this.style.display='none';this.parentNode.classList.add('empty')"><span class="ph">${esc(T('status.swImageHint', '사진 영역'))}</span></div>
+          <div class="sw-photo" style="height:${swH}px"><img src="${esc(T('status.swImage', 'data/assets/sw_status.png'))}" alt="${esc(T('status.swTitle'))}" style="object-fit:${esc(swFit)}" onerror="this.style.display='none';this.parentNode.classList.add('empty')"><span class="ph">${esc(T('status.swImageHint', '사진 영역'))}</span></div>
           <div class="sw-content">
             <div class="mods">${mods}</div>
             <div class="mini" style="margin-top:10px">${TT('status.swFoot', { incomplete: `<b>${incomplete}</b>`, inprog })}</div>

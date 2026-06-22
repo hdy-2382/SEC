@@ -101,7 +101,7 @@
   .mod .pc{font-size:11px;color:var(--muted);width:34px;text-align:right}
   /* 설비평가: 사진(위) + 캡션(아래) 분리. 높이는 inline style(config)로 지정 */
   .layout-figure{display:flex;flex-direction:column}
-  .layout-img{position:relative;width:100%;height:300px;border-radius:10px 10px 0 0;overflow:hidden;background:#0c1f3b}
+  .layout-img{position:relative;width:100%;height:300px;border-radius:10px 10px 0 0;overflow:hidden;background:#fff}
   .layout-img img{width:100%;height:100%;object-fit:contain;display:block}
   .layout-cap{padding:10px 13px;background:var(--card-alt);border:1px solid var(--line-soft);border-top:none;border-radius:0 0 10px 10px;color:var(--ink-soft);font-size:12px;line-height:1.45}
   .layout-cap b{color:var(--sky)}
@@ -113,9 +113,10 @@
   .status-grid{align-items:stretch}
   .status-grid>.panel{display:flex;flex-direction:column}
   .status-grid .layout-figure{flex:1 1 auto}
-  .status-grid .sw-2col{flex:1 1 auto;align-items:stretch;min-height:0}
-  .status-grid .sw-photo{height:100%;min-height:0}
-  .sw-photo{position:relative;border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;background:var(--sky-soft);min-height:150px;display:flex;align-items:center;justify-content:center}
+  .status-grid .sw-2col{flex:none;align-items:start;min-height:0}
+  .status-grid .sw-photo{min-height:0}
+  /* SW 사진 높이는 inline style(config swImageHeight)로 지정 */
+  .sw-photo{position:relative;border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}
   .sw-photo img{width:100%;height:100%;object-fit:contain;display:block}
   .sw-photo .ph{position:absolute;font-size:11px;color:var(--muted);display:none}
   .sw-photo.empty .ph{display:block}
