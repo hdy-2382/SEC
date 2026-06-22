@@ -28,6 +28,7 @@ build_dashboard_json.py
 from __future__ import annotations
 
 import json
+import math
 import re
 import zipfile
 from datetime import date, datetime, time, timedelta, timezone
@@ -36,6 +37,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw"
 OUT_PATH = ROOT / "data" / "dashboard.json"
+CONFIG_PATH = ROOT / "data" / "config.json"
+MGMT_PATH = ROOT / "data" / "mgmt.xlsx"
 
 
 # ── 컬럼 헤더 매핑 ─────────────────────────────────────────────
@@ -408,6 +411,271 @@ def _load_workbook_rows(src: Path) -> tuple[list[list], list[list]]:
         return daily_rows, errors_rows
 
 
+# ── 관리 데이터(config + mgmt.xlsx) 로딩 ─────────────────────────
+def _load_config() -> dict:
+    if not CONFIG_PATH.exists():
+        return {}
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[build] ⚠ config.json 읽기 실패: {e}")
+        return {}
+
+
+CODE_FIELDS = {"code": ["코드"], "type": ["유형"], "severity": ["등급", "심각도"], "desc": ["설명"]}
+ACTION_FIELDS = {"id": ["조치id"], "code": ["대상코드"], "action": ["조치내용"],
+                 "owner": ["담당"], "due": ["목표일"], "status": ["상태"],
+                 "verifyStart": ["검증시작cycle", "검증시작"]}
+
+
+def _norm_sev(v) -> str:
+    s = _cell_to_str(v).lower()
+    if "crit" in s or "치명" in s:
+        return "Critical"
+    if "maj" in s or "중대" in s:
+        return "Major"
+    if "min" in s or "경미" in s:
+        return "Minor"
+    return _cell_to_str(v) or "Minor"
+
+
+def _read_mgmt_sheet(ws, fields) -> list[dict]:
+    rows = [list(r) for r in ws.iter_rows(values_only=True)]
+    if not rows:
+        return []
+    hidx = _find_header_row(rows, fields)
+    cmap = _build_column_map(rows[hidx], fields)
+    out = []
+    for row in rows[hidx + 1:]:
+        if row is None or all(c is None or c == "" for c in row):
+            continue
+        out.append({f: _safe_idx(row, cmap.get(f)) for f in fields})
+    return out
+
+
+def _load_mgmt() -> tuple[list[dict], list[dict]]:
+    if not MGMT_PATH.exists():
+        print("[build] mgmt.xlsx 없음 — 코드마스터/조치 없이 진행 (generate_mgmt_template.py로 생성)")
+        return [], []
+    from openpyxl import load_workbook
+    wb = load_workbook(MGMT_PATH, data_only=True)
+    names = wb.sheetnames
+    cm = _find_name(names, ["코드마스터", "코드", "code"])
+    am = _find_name(names, ["조치검증", "조치", "action"])
+    raw_c = _read_mgmt_sheet(wb[cm], CODE_FIELDS) if cm else []
+    raw_a = _read_mgmt_sheet(wb[am], ACTION_FIELDS) if am else []
+    codes = [{"code": _cell_to_str(c["code"]), "type": _cell_to_str(c["type"]),
+              "severity": _norm_sev(c["severity"]), "desc": _cell_to_str(c["desc"])}
+             for c in raw_c if _cell_to_str(c["code"])]
+    actions = [{"id": _cell_to_str(a["id"]), "code": _cell_to_str(a["code"]),
+                "action": _cell_to_str(a["action"]), "owner": _cell_to_str(a["owner"]),
+                "due": _cell_to_str(a["due"]), "status": _cell_to_str(a["status"]),
+                "verifyStart": _cell_to_int(a["verifyStart"])}
+               for a in raw_a if _cell_to_str(a["id"])]
+    return codes, actions
+
+
+def _iso_week(date_str: str):
+    try:
+        y, w, _ = date.fromisoformat(date_str).isocalendar()
+        return (y, w)
+    except Exception:
+        return None
+
+
+def _occ_band(n: int) -> str:
+    return "빈발" if n >= 6 else ("보통" if n >= 3 else "드묾")
+
+
+_PRIORITY = {
+    ("Critical", "드묾"): "Medium", ("Critical", "보통"): "High", ("Critical", "빈발"): "High",
+    ("Major", "드묾"): "Low", ("Major", "보통"): "Medium", ("Major", "빈발"): "High",
+    ("Minor", "드묾"): "Low", ("Minor", "보통"): "Low", ("Minor", "빈발"): "Medium",
+}
+
+
+# ── 파생 지표 계산 (신뢰성 대시보드 v5) ──────────────────────────
+def _compute(daily, errors, config, codes, actions) -> dict:
+    acc = config.get("acceptance") or {}
+    target = acc.get("targetCycle") or config.get("project", {}).get("target", 360)
+    mtbf_t = acc.get("mtbfTargetCycle", 100)
+    conf_lv = acc.get("confidenceLevel", 0.80)
+    verify_cy = acc.get("verifyCycle", 200)
+    recur_lim = acc.get("recurrenceLimit", 0)
+
+    cum_total = sum(d["total"] for d in daily)
+    cum_err = sum(d["errors"] for d in daily)
+    success = max(0, cum_total - cum_err)
+    streak_cur = daily[-1]["streak"] if daily else 0
+    streak_max = max((d["streak"] for d in daily), default=0)
+    mtbf_cur = round(cum_total / cum_err) if cum_err else cum_total
+
+    # ── 에러 버짓 리셋 모델 ──────────────────────────────────────
+    # 한 '시도(attempt)'는 연속 target Cycle + 에러 ≤ error_limit 를 동시에 만족해야 합격.
+    # error_limit 를 초과하는 에러(= error_limit+1번째)가 나오면 그 시도는 실패 →
+    # 해당 에러 지점부터 새 시도 시작(진행 Cycle·버짓 0). 진행률은 '현재 시도' 기준.
+    error_limit = acc.get("errorLimit", config.get("project", {}).get("errorLimit", 3))
+    attempt_start = 0          # 현재 시도가 시작된 누적 Cycle
+    budget_used = 0            # 현재 시도의 누적 에러 (0~error_limit)
+    budget_resets = 0          # 버짓 초과로 시도가 리셋된 횟수
+    for c in sorted(e["cycle"] for e in errors if e.get("cycle")):
+        if budget_used + 1 > error_limit:      # 다음 에러가 한도 초과 → 시도 실패·리셋
+            budget_resets += 1
+            attempt_start = c                  # 이 에러 지점부터 새 시도 (이 에러는 실패로 소진)
+            budget_used = 0
+        else:
+            budget_used += 1
+    attempt_cycles = max(0, cum_total - attempt_start)   # 현재 시도 진행 Cycle
+
+    # 주차별 누적연속 + 안정성(에러율↓/MTBF↑)
+    weekly = {}
+    for d in sorted(daily, key=lambda x: x["date"]):
+        wk = _iso_week(d["date"])
+        if wk is None:
+            continue
+        w = weekly.setdefault(wk, {"total": 0, "errors": 0, "lastStreak": 0})
+        w["total"] += d["total"]; w["errors"] += d["errors"]; w["lastStreak"] = d["streak"]
+    weekly_list = []
+    run_t = run_e = 0
+    for i, (key, w) in enumerate(sorted(weekly.items()), start=1):
+        run_t += w["total"]; run_e += w["errors"]
+        try:
+            week_start = date.fromisocalendar(key[0], key[1], 1).isoformat()
+        except Exception:
+            week_start = ""
+        weekly_list.append({
+            "week": f"W{i}", "weekStart": week_start, "cumStreak": w["lastStreak"],
+            "weekSuccess": max(0, w["total"] - w["errors"]), "errors": w["errors"],
+            "errRate": round(run_e / run_t * 100, 1) if run_t else 0,
+            "mtbf": round(run_t / run_e) if run_e else run_t,
+        })
+
+    # 신뢰수준 (무고장 시험): C = 1 − e^(−n/MTBF목표)
+    def required(c):
+        return round(mtbf_t * (-math.log(1 - c))) if 0 < c < 1 else 0
+    conf_cur = 1 - math.exp(-streak_cur / mtbf_t) if mtbf_t else 0
+    conf_table = [{"c": round(c * 100), "required": required(c)} for c in (0.80, 0.87, 0.90)]
+
+    # 코드 집계 + 코드마스터(등급) 조인
+    sev_of = {c["code"]: c["severity"] for c in codes}
+    type_of = {c["code"]: c["type"] for c in codes}
+    cnt = {}
+    for e in errors:
+        if e["code"]:
+            cnt[e["code"]] = cnt.get(e["code"], 0) + 1
+
+    top5 = sorted(cnt.items(), key=lambda kv: -kv[1])[:5]
+    top5_by_code = [{"code": c, "type": type_of.get(c, ""), "count": n,
+                     "severity": sev_of.get(c, "Minor"), "recur": n > 1} for c, n in top5]
+
+    sev_dist = {"Critical": 0, "Major": 0, "Minor": 0}
+    for e in errors:
+        s = sev_of.get(e["code"], "Minor")
+        sev_dist[s] = sev_dist.get(s, 0) + 1
+    sev_dist["total"] = len(errors)
+
+    tcnt = {}
+    for e in errors:
+        t = e["type"] or "기타"
+        tcnt[t] = tcnt.get(t, 0) + 1
+    pareto = []
+    run = 0; tot = sum(tcnt.values()) or 1
+    for t, n in sorted(tcnt.items(), key=lambda kv: -kv[1]):
+        run += n
+        pareto.append({"type": t, "count": n, "cumPct": round(run / tot * 100)})
+
+    matrix = []
+    for c, n in sorted(cnt.items(), key=lambda kv: -kv[1]):
+        sev = sev_of.get(c, "Minor"); ob = _occ_band(n)
+        matrix.append({"code": c, "type": type_of.get(c, ""), "severity": sev,
+                       "count": n, "occ": ob, "priority": _PRIORITY.get((sev, ob), "Low")})
+
+    recur_count = sum(n - 1 for n in cnt.values() if n > 1)
+    recur_items = [{"code": c, "type": type_of.get(c, ""), "count": n}
+                   for c, n in cnt.items() if n > 1]
+
+    # 조치/검증 (조치 후 verify_cy Cycle 무발생 → 검증완료 자동판정)
+    act_out = []
+    open_critical = verified = relevant = 0
+    for a in actions:
+        c = a["code"]; vs = a["verifyStart"] or 0
+        later_same = any(e["code"] == c and e["cycle"] > vs for e in errors) if vs else False
+        no_fail = 0 if (later_same or not vs) else max(0, cum_total - vs)
+        if later_same:
+            result = "재발"
+        elif vs and no_fail >= verify_cy:
+            result = "검증완료"
+        elif vs and no_fail > 0:
+            result = "검증중"
+        else:
+            result = "조치중"
+        sev = sev_of.get(c, "Minor")
+        if sev in ("Critical", "Major"):
+            relevant += 1
+            if result == "검증완료":
+                verified += 1
+        if sev == "Critical" and result != "검증완료":
+            open_critical += 1
+        act_out.append({**a, "severity": sev, "type": type_of.get(c, ""),
+                        "noFailCycles": no_fail, "verifyTarget": verify_cy,
+                        "verifyProgress": round(min(1, no_fail / verify_cy) * 100) if verify_cy else 0,
+                        "verifyResult": result})
+    verify_closed_rate = round(verified / relevant * 100) if relevant else 100
+
+    def st(ok, prog=False):
+        return "pass" if ok else ("prog" if prog else "fail")
+    criteria = [
+        {"key": "완주", "value": f"{attempt_cycles}/{target}",
+         "status": st(attempt_cycles >= target, prog=attempt_cycles < target)},
+        {"key": f"MTBF≥{mtbf_t} @{int(conf_lv * 100)}%", "value": f"{round(conf_cur * 100)}%",
+         "status": st(conf_cur >= conf_lv)},
+        {"key": "미해결 Critical=0", "value": f"{open_critical}건",
+         "status": st(open_critical <= acc.get("criticalOpenLimit", 0))},
+        {"key": f"재발≤{recur_lim}", "value": f"{recur_count}건",
+         "status": st(recur_count <= recur_lim)},
+        {"key": "전 결함 검증종결", "value": f"{verified}/{relevant}",
+         "status": st(relevant and verified == relevant, prog=verified < relevant)},
+    ]
+    passed = sum(1 for c in criteria if c["status"] == "pass")
+
+    if recur_count >= 1 or open_critical >= 1:
+        op_grade = "주의"
+    elif recur_count == 0 and open_critical == 0 and verify_closed_rate >= 80:
+        op_grade = "양호"
+    else:
+        op_grade = "보통"
+
+    return {
+        "metrics": {
+            "progress": {"cum": attempt_cycles, "target": target,
+                         "pct": round(attempt_cycles / target * 100, 1) if target else 0},
+            "errorBudget": {"used": budget_used, "limit": error_limit,
+                            "resets": budget_resets, "lifetimeErrors": cum_err,
+                            "dailyAvg": round(cum_err / len(daily), 2) if daily else 0,
+                            "weeklyAvg": round(cum_err / len(weekly_list), 2) if weekly_list else 0},
+            "successRate": round(success / cum_total * 100, 1) if cum_total else 0,
+            "success": success, "errorsTotal": cum_err,
+            "mtbf": {"current": mtbf_cur, "target": mtbf_t},
+            "streak": {"current": streak_cur, "max": streak_max},
+            "weekly": weekly_list,
+            "throughput": {"total": cum_total,
+                           "daily": round(cum_total / len(daily), 1) if daily else 0},
+            "confidence": {"level": conf_lv, "current": round(conf_cur, 3),
+                           "currentPct": round(conf_cur * 100), "currentCycles": streak_cur,
+                           "requiredForLevel": required(conf_lv), "table": conf_table},
+        },
+        "failure": {"top5ByCode": top5_by_code, "paretoByType": pareto,
+                    "severityDist": sev_dist, "matrix": matrix},
+        "actions": act_out,
+        "recurrence": {"count": recur_count,
+                       "rate": round(recur_count / len(errors) * 100, 1) if errors else 0,
+                       "items": recur_items},
+        "acceptance": {"criteria": criteria, "passed": passed, "total": len(criteria)},
+        "opReliability": {"grade": op_grade, "recur": recur_count,
+                          "openCritical": open_critical, "verifyClosedRate": verify_closed_rate},
+    }
+
+
 def main():
     src = _pick_latest_xlsx()
     print(f"[build] 입력 파일: {src.name}")
@@ -416,17 +684,27 @@ def main():
     daily  = _parse_daily(daily_rows)
     errors = _parse_errors(errors_rows)
 
+    config = _load_config()
+    codes, actions = _load_mgmt()
+    computed = _compute(daily, errors, config, codes, actions)
+
     out = {
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source":      src.name,
+        "config":      config,
+        "codes":       codes,
         "daily":       daily,
         "errors":      errors,
+        **computed,
     }
     OUT_PATH.write_text(
         json.dumps(out, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print(f"[build] 출력: {OUT_PATH.relative_to(ROOT)}  (daily {len(daily)}건, errors {len(errors)}건)")
+    m = computed["metrics"]
+    print(f"[build] 출력: {OUT_PATH.relative_to(ROOT)}  "
+          f"(daily {len(daily)}, errors {len(errors)}, 진행 {m['progress']['pct']}%, "
+          f"신뢰수준 {m['confidence']['currentPct']}%, 합격 {computed['acceptance']['passed']}/5)")
 
 
 if __name__ == "__main__":

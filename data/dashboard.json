@@ -1,48 +1,459 @@
 {
-  "generatedAt": "2026-06-15T05:12:27Z",
+  "generatedAt": "2026-06-21T23:59:37Z",
   "source": "260601_SEC양산평가.xlsx",
+  "config": {
+    "project": {
+      "name": "S4 증축동",
+      "department": "A-INFRA 기술팀",
+      "team": "양희두, 김현일",
+      "startDate": "2026-06-01",
+      "endDate": "2026-09-30",
+      "target": 360,
+      "errorLimit": 3,
+      "weeklyTargetExp": 2
+    },
+    "acceptance": {
+      "targetCycle": 360,
+      "errorLimit": 3,
+      "mtbfTargetCycle": 100,
+      "confidenceLevel": 0.8,
+      "recurrenceLimit": 0,
+      "verifyCycle": 200,
+      "criticalOpenLimit": 0
+    },
+    "lifecycle": [
+      {
+        "stage": "POC",
+        "status": "done",
+        "note": "개념 검증 완료"
+      },
+      {
+        "stage": "Pilot",
+        "status": "done",
+        "note": "파일럿 라인 검증"
+      },
+      {
+        "stage": "양산성 평가",
+        "status": "done",
+        "note": "양산성 확인"
+      },
+      {
+        "stage": "양산평가 1차",
+        "status": "current",
+        "note": "360 Cycle 평가 진행"
+      },
+      {
+        "stage": "양산평가 2차",
+        "status": "todo",
+        "note": ""
+      },
+      {
+        "stage": "양산대응",
+        "status": "todo",
+        "note": ""
+      }
+    ],
+    "line": {
+      "layoutImage": "data/assets/line_layout.png",
+      "stations": [
+        {
+          "name": "설비 1",
+          "role": "픽업",
+          "status": "pass"
+        },
+        {
+          "name": "설비 2",
+          "role": "이송",
+          "status": "pass"
+        },
+        {
+          "name": "설비 3",
+          "role": "적재",
+          "status": "current"
+        },
+        {
+          "name": "설비 4",
+          "role": "검사·반송",
+          "status": "wait"
+        }
+      ]
+    },
+    "swModules": [
+      {
+        "name": "비전 인식",
+        "pct": 100
+      },
+      {
+        "name": "통신 / HMI",
+        "pct": 100
+      },
+      {
+        "name": "경로 계획",
+        "pct": 100
+      },
+      {
+        "name": "안전 인터록",
+        "pct": 100
+      },
+      {
+        "name": "그리퍼 제어",
+        "pct": 90
+      },
+      {
+        "name": "적재 로직",
+        "pct": 70
+      },
+      {
+        "name": "데이터 로깅",
+        "pct": 60
+      },
+      {
+        "name": "리포트 연동",
+        "pct": 30
+      }
+    ],
+    "_ui_readme": "아래 ui 블록의 모든 글자는 화면에 그대로 표시됩니다. 여기만 고치면 새로고침 시 바로 반영됩니다(재빌드 불필요). {중괄호}는 자동으로 채워지는 숫자/값이니 그대로 두세요. <b>..</b> 같은 태그는 강조 표시이므로 유지하면 됩니다. steps.targetCurve = 주차별 추이의 목표 곡선 모양: linear(선형)·quad(2차)·cubic(3차) 중 하나.",
+    "ui": {
+      "app": {
+        "title": "케미컬 체결/반송 자동화 시스템",
+        "brandLogo": "케",
+        "brandName": "케미컬 체결/반송<br>자동화",
+        "printBtn": "PDF 리포트",
+        "footBrand": "FRACAS + 신뢰성 성장",
+        "evalDateLabel": "평가일",
+        "updatedPrefix": "업데이트 "
+      },
+      "nav": {
+        "status": "개발 현황",
+        "summary": "평가 결과 요약",
+        "stepsGroup": "신뢰성 입증 6단계 흐름",
+        "step1": "기준 정의",
+        "step2": "결함 관리",
+        "step3": "신뢰성 성장",
+        "step4": "신뢰수준 입증",
+        "step5": "결함 종결",
+        "step6": "근거 기록",
+        "refGroup": "참고",
+        "info": "프로젝트 정보"
+      },
+      "common": {
+        "stDone": "완료",
+        "stCurrent": "진행 중",
+        "stTodo": "예정",
+        "noteEmpty": "— 메모"
+      },
+      "status": {
+        "tag": "현황",
+        "title": "📍 평가 대상 · 개발 현황",
+        "desc": "상사 팔로업: 어느 단계 / 무엇을 테스트 / 무엇이 개발",
+        "stageTitle": "개발 진행 단계",
+        "stageCurrentPrefix": "현재: ",
+        "stageSub": "DEVELOPMENT STAGE · 전체 {n}단계 중 현재 위치",
+        "lineTitle": "설비 평가 진행 (라인 레이아웃)",
+        "lineBadge": "📷 {n}설비 순차",
+        "lineSub": "SEQUENTIAL STATION TEST",
+        "lineCapEval": "현재 평가",
+        "lineCapPassed": "통과",
+        "lineCapWaiting": "대기",
+        "lineCapFallback": "라인 레이아웃",
+        "swTitle": "소프트웨어 개발 현황",
+        "swBadge": "완성도 {n}%",
+        "swSub": "SW MODULE STATUS · 🟢완료 🟠진행 ⬜미완성",
+        "swFoot": "⬜ 미완성: {incomplete} · 🟠 진행: {inprog}",
+        "swNone": "없음",
+        "swImage": "data/assets/sw_status.png",
+        "swImageHint": "사진 영역 (data/assets/sw_status.png)"
+      },
+      "period": {
+        "label": "평가 기간",
+        "summary": "총 {tot}일 · D+{dplus} ({pct}%)",
+        "today": "★ 오늘 {md}"
+      },
+      "summary": {
+        "tag": "요약",
+        "title": "목표 · 핵심 지표",
+        "desc": "합격·신뢰성·운용 목표 + KPI",
+        "goalPrimaryDone": "달성",
+        "goalPrimaryProg": "진행 중",
+        "goalPrimaryTitle": "🎯 양산평가 합격 목표 · 계약 (~{end})",
+        "goalPrimaryGoal": "연속 {target} Cycle · 에러 {limit}회 미만",
+        "progressRate": "진행률 {pct}%",
+        "streakLabel": "현재 연속 무에러 · 최대 {max}",
+        "goalPrimaryNote": "누적 에러 {errors}건 · 남은 {remain} Cycle 통과가 관건 (반드시 달성)",
+        "goalSecondaryPass": "충족",
+        "goalSecondaryCond": "조건부",
+        "goalSecondaryTitle": "🛡 신뢰성 입증 목표 · 심화 (프로젝트 최종)",
+        "goalSecondaryGoal": "MTBF≥{mtbf} @신뢰수준 {conf}% · FRACAS 6단계",
+        "goalSecondaryStep": "입증 단계 충족",
+        "goalSecondaryConf": "입증 신뢰수준 (목표 {conf}%)",
+        "goalSecondaryNote": "합격(좌)을 넘어 \"신뢰성 있게 쓸 수 있나\"를 정량 입증 — 아래 6단계가 근거",
+        "capPrimary": "<b>🎯 양산평가 합격</b> = 계약 통과, <b>반드시 달성</b>",
+        "capSecondary": "<b>🛡 신뢰성 입증</b> = 더 높은 신뢰도 확보, <b>권장</b>",
+        "opRel": "🔧 <b>운용 신뢰도</b> (근본해결·대응)",
+        "opRelDetail": "재발 <b>{recur}</b>건 · 검증 종결 <b>{closed}%</b> · 미해결 Critical <b>{open}</b>",
+        "opRelMini": "규칙 기반 · 신규 데이터 0칸",
+        "heroLabel": "MTBI · 양산평가 진행",
+        "heroTitle": "누적 평가 진행률",
+        "heroCur": "현재",
+        "heroTarget": "목표",
+        "heroStreak": "연속 무에러",
+        "heroMax": "최대 기록",
+        "heroDonutSub": "달성률",
+        "ebudLabel": "Error Budget · 현재 시도 에러 / 한도",
+        "ebudOf": "of {limit}",
+        "ebudReset": "한도 초과 리셋 {n}회 · 누적 에러 {total}건",
+        "ebudNoReset": "리셋 없음 · 누적 에러 {total}건",
+        "ebudDailyAvg": "일평균 에러",
+        "ebudWeeklyAvg": "주평균 에러",
+        "ebudSuccess": "성공률",
+        "ebudMtbf": "MTBF",
+        "ebudRecur": "재발",
+        "kpiProgress": "평가 진행률",
+        "kpiProgressSub": "{cum}/{target}",
+        "kpiSuccess": "성공률",
+        "kpiSuccessSub": "성공 {success}·실패 {errors}",
+        "kpiMtbf": "MTBF(현재)",
+        "kpiMtbfSub": "목표 {target}",
+        "kpiRecur": "재발 오류율",
+        "kpiRecurSub": "목표 <5%",
+        "kpiThroughput": "일평균 처리량",
+        "kpiThroughputSub": "총 누적 {total}"
+      },
+      "steps": {
+        "tag": "신뢰성 입증 흐름",
+        "title": "6단계로 \"신뢰성 있게 쓸 수 있나\" 입증",
+        "desc": "🛡 Track 2 근거 · 합격은 위 요약에서 추적",
+        "critPass": "충족",
+        "critFail": "미달",
+        "critProg": "진행",
+        "chartTargetLabel": "목표 {v}",
+        "s1Title": "합격선 정의",
+        "s1Q": "결과를 보기 전에 \"무엇을 신뢰성이라 부를지\"를 먼저 못박았는가?",
+        "s1Chip": "사전 정의 · {passed}/{total} 충족",
+        "s1PanelTitle": "합격 기준 (사전 합의 · config 고정)",
+        "s1PanelSub": "PRE-DEFINED ACCEPTANCE CRITERIA · post-hoc 아님",
+        "s2Title": "결함관리 (FRACAS) · 고장 프로파일",
+        "s2Q": "모든 결함이 폐쇄루프로 닫혔는가 / 무엇이 얼마나 나쁜가?",
+        "s2Chip": "폐쇄루프 추적",
+        "flow": [
+          "고장 보고",
+          "근본원인 분석",
+          "시정조치",
+          "무발생 검증",
+          "종결"
+        ],
+        "fracasH": [
+          "코드",
+          "유형",
+          "조치내용",
+          "무발생 검증({verify}Cy)",
+          "상태"
+        ],
+        "top5Title": "빈발 고장 Top 5 (코드 기준)",
+        "top5Sub": "자주 나는 고장 순 · 등급·재발",
+        "top5H": [
+          "코드",
+          "유형",
+          "건수",
+          "빈도",
+          "등급"
+        ],
+        "matrixTitle": "위험 매트릭스 (S×O)",
+        "matrixSub": "RPN 없이 우선순위 자동",
+        "recurTitle": "재발 현황",
+        "recurSub": "같은 코드 재출현 (자동)",
+        "recurUnit": "건 · {rate}%",
+        "recurNone": "재발 없음",
+        "recurWarn": "⚠️ 조치 후 재발 = 근본원인 미해결 신호",
+        "s3Title": "신뢰성 성장",
+        "s3Q": "고치며 운영할수록 실제로 더 안정돼 왔는가?",
+        "s3Chip": "추세",
+        "targetCurve": "linear",
+        "targetCurveNames": {
+          "linear": "선형",
+          "quad": "2차 곡선",
+          "cubic": "3차 곡선"
+        },
+        "yAxisMax": 400,
+        "autoScaleLabel": "Auto scale",
+        "growthTitle": "주차별 연속 사이클 추이",
+        "growthSub": "주차연속성공 + 누적연속 + 목표 0→{target} 곡선 · 리셋 ✕ · x축 평가기간 전체 주차",
+        "growthTargetLabel": "목표 {v} ({curve})",
+        "growthLegend": [
+          "주차 연속 성공",
+          "누적 연속",
+          "리셋",
+          "목표 곡선"
+        ],
+        "mtbfTitle": "MTBF 추이 (목표 {target})",
+        "mtbfSub": "MEAN CYCLES BETWEEN FAILURES",
+        "stabTitle": "시스템 안정성 추이",
+        "stabSub": "에러율 ↓ + MTBF ↑ = 안정화",
+        "stabLegend": [
+          "이동 에러율 (좌·%)",
+          "누적 MTBF (우·Cy)"
+        ],
+        "s4Title": "신뢰수준 입증",
+        "s4Q": "정해둔 신뢰수준으로 목표 MTBF를 \"통계적으로\" 입증했는가?",
+        "s4PanelTitle": "신뢰성 입증 (무고장 시험 기반)",
+        "s4PanelSub": "RELIABILITY DEMONSTRATION · 마지막 조치 이후 무고장 Cycle 기준",
+        "s4Goal": "목표 <b>MTBF ≥ {mtbf} Cycle</b> · 요구 신뢰수준 <b>{level}%</b>",
+        "s4Gauge1": "현재 무고장 연속 <b style=\"color:var(--navy-deep)\">{cur}</b> Cycle",
+        "s4Gauge2": "필요 <b>{req}</b>",
+        "s4Result": "→ 현재 입증 신뢰수준 <b style=\"color:var(--crit)\">{pct}%</b>",
+        "s4Need": " · 목표까지 <b>+{need} Cycle</b> 무고장 필요",
+        "s4Met": " · 목표 충족",
+        "s4Formula": "필요 무고장 Cycle <code>T ≈ 목표MTBF × (−ln(1−신뢰수준))</code>",
+        "s4TableH": [
+          "신뢰수준",
+          "필요 무고장",
+          "현재({cur})"
+        ],
+        "s4Now": "{pct}% (현재)",
+        "s4GoalMark": " (목표)",
+        "s4Achieved": "달성",
+        "s5Title": "미해결 0 종결",
+        "s5Q": "알려진 결함이 모두 검증 종결됐는가?",
+        "s5Chip": "미해결 조치 {open}건 · Critical {crit}",
+        "s5OpenCritTitle": "미해결 Critical",
+        "s5OpenCritSub": "종료 시 0 필요",
+        "s5OpenCritMet": "✓ 충족",
+        "s5OpenCritUnmet": "⚠️ 미충족",
+        "s5OpenActTitle": "미해결 조치",
+        "s5OpenActSub": "진행중 + 검증중",
+        "s5ClosedTitle": "검증 종결률",
+        "s5ClosedSub": "Critical·Major 대비",
+        "s5ActTitle": "조치 관리 (Action Items)",
+        "s5ActBadge": "전체 표",
+        "s5ActSub": "유지 데이터: mgmt.xlsx 「조치검증」",
+        "s5ActH": [
+          "ID",
+          "조치 항목",
+          "대상",
+          "담당",
+          "목표일",
+          "상태",
+          "진행률"
+        ],
+        "s6Title": "기록 (근거)",
+        "s6Q": "판정의 원천 기록이 보존·추적 가능한가?",
+        "s6Chip": "git 추적",
+        "s6Integrity": "🔒 <b>데이터 무결성</b> git 버전관리 · 단일 출처 · 판정 재현 가능",
+        "s6Source": "원천: {source}",
+        "dailyTitle": "일자별 평가 기록",
+        "dailySub": "DAILY LOG · 업체 일일평가",
+        "dailyH": [
+          "평가일",
+          "평가",
+          "에러",
+          "연속",
+          "비고"
+        ],
+        "errlogTitle": "에러 상세 로그",
+        "errlogBadge": "사진 모달",
+        "errlogSub": "INCIDENT DETAILS · 원인·조치·사진 (＋상세)",
+        "errlogH": [
+          "코드",
+          "유형 / 원인",
+          "담당",
+          "상세"
+        ],
+        "errlogBtn": "＋상세"
+      },
+      "info": {
+        "tag": "프로젝트 정보",
+        "title": "Project Info",
+        "desc": "개요 · 합격기준 · 방법론",
+        "overviewTitle": "프로젝트 개요",
+        "overviewSub": "OVERVIEW · config 기반",
+        "rowProject": "프로젝트",
+        "rowTarget": "평가 대상",
+        "rowTargetVal": "단일 라인 · {n}설비 ({stations}) 순차",
+        "rowPeriod": "평가 기간",
+        "rowOwner": "담당",
+        "rowSource": "데이터 출처",
+        "rowSourceVal": "업체 xlsx + mgmt.xlsx → build_dashboard_json.py → git",
+        "critTitle": "평가 · 합격 기준",
+        "critSub": "CRITERIA & METHOD · 사전 합의 · 수정 가능",
+        "critPass": "🎯 합격(계약)",
+        "critPassVal": "연속 <b>{target} Cycle</b> · 에러 <b>{limit}회 미만</b>",
+        "critRel": "🛡 신뢰성 목표",
+        "critRelVal": "MTBF ≥ <b>{mtbf} Cycle</b> @ 신뢰수준 <b>{conf}%</b> (필요 무고장 {req}Cy)",
+        "critVerify": "검증 기준",
+        "critVerifyVal": "조치 후 <b>{verify} Cycle</b> 무발생 → 종결",
+        "critRecur": "재발 정의",
+        "critRecurVal": "동일 <b>에러 코드</b> 재출현",
+        "critMethod": "방법론",
+        "critMethodVal": "FRACAS + 신뢰성 성장 + 무고장 시험 <span class=\"mini\">(RCM은 합격 후 정비단계)</span>"
+      },
+      "modal": {
+        "title": "에러 상세",
+        "titleFull": "에러 상세 · {code} (No.{no})",
+        "occur": "발생",
+        "cycle": "회차",
+        "type": "유형",
+        "owner": "담당",
+        "ownerVal": "삼성 {sec} / 업체 {vendor}",
+        "detail": "상세",
+        "cause": "원인",
+        "action": "조치",
+        "detailMore": "상세설명",
+        "images": "현장 사진",
+        "imgMissing": "이미지 없음: {fn}",
+        "errorLoad": "데이터를 불러오지 못했습니다 (data/dashboard.json). 로컬에서는 HTTP 서버로 여세요."
+      }
+    }
+  },
+  "codes": [
+    {
+      "code": "ERR-001",
+      "type": "Vision Timeout",
+      "severity": "Critical",
+      "desc": "비전 좌표 인식 실패, 로봇 정지"
+    },
+    {
+      "code": "ERR-002",
+      "type": "Gripper Slip",
+      "severity": "Major",
+      "desc": "그리퍼 그립 실패"
+    },
+    {
+      "code": "ERR-003",
+      "type": "Path Error",
+      "severity": "Major",
+      "desc": "경로 계획 오류"
+    },
+    {
+      "code": "ERR-005",
+      "type": "Sensor Noise",
+      "severity": "Minor",
+      "desc": "센서 노이즈/EMI"
+    }
+  ],
   "daily": [
     {
       "date": "2026-06-01",
       "personnel": "홍길동, 김철수",
-      "activity": "JOB 생성 - 픽업 - 적재 사이클 셋업",
+      "activity": "JOB 생성 · 픽업–적재 사이클 셋업",
       "total": 8,
       "errors": 0,
       "streak": 8,
-      "notes": "초기 셋업, 안정"
+      "notes": ""
     },
     {
       "date": "2026-06-02",
       "personnel": "홍길동, 김철수",
       "activity": "사이클 반복 안정성 검증",
-      "total": 9,
-      "errors": 0,
-      "streak": 9,
-      "notes": "정상"
-    },
-    {
-      "date": "2026-06-03",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-03",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 15,
+      "total": 10,
       "errors": 1,
-      "streak": 14,
-      "notes": ""
+      "streak": 3,
+      "notes": "ERR-001 발생 → 연속 리셋"
     },
     {
       "date": "2026-06-03",
       "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 15,
+      "activity": "연속 적재 정밀도 점검",
+      "total": 12,
       "errors": 0,
       "streak": 15,
       "notes": ""
@@ -50,189 +461,626 @@
     {
       "date": "2026-06-04",
       "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 2,
+      "activity": "비전 파라미터 튜닝",
+      "total": 12,
+      "errors": 0,
+      "streak": 27,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-05",
+      "personnel": "홍길동, 김철수",
+      "activity": "노출 보정 후 재검증",
+      "total": 14,
+      "errors": 0,
+      "streak": 41,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-08",
+      "personnel": "홍길동, 김철수",
+      "activity": "그리퍼 압력 캘리브레이션",
+      "total": 14,
+      "errors": 1,
       "streak": 6,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-04",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 9,
-      "errors": 0,
-      "streak": 9,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-04",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-04",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 9,
-      "errors": 1,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-05",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-05",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-05",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-05",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-06",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 15,
-      "errors": 0,
-      "streak": 15,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-06",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 15,
-      "errors": 0,
-      "streak": 15,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-06",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 15,
-      "errors": 1,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-07",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 9,
-      "errors": 1,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-07",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 9,
-      "errors": 0,
-      "streak": 9,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-08",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-08",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
-      "errors": 1,
-      "streak": 7,
-      "notes": ""
+      "notes": "ERR-002 발생 → 연속 리셋"
     },
     {
       "date": "2026-06-09",
       "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 8,
+      "activity": "표면 검사 단계 검증",
+      "total": 15,
       "errors": 0,
-      "streak": 8,
+      "streak": 21,
       "notes": ""
     },
     {
       "date": "2026-06-10",
       "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 9,
+      "activity": "경로 플래너 검증",
+      "total": 15,
+      "errors": 1,
+      "streak": 8,
+      "notes": "ERR-003 발생 → 연속 리셋"
+    },
+    {
+      "date": "2026-06-11",
+      "personnel": "홍길동, 김철수",
+      "activity": "역광 조건 재현 시험",
+      "total": 16,
       "errors": 0,
-      "streak": 9,
+      "streak": 24,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-12",
+      "personnel": "홍길동, 김철수",
+      "activity": "차광 설치 후 재검증",
+      "total": 16,
+      "errors": 1,
+      "streak": 12,
+      "notes": "ERR-001 발생 → 연속 리셋"
+    },
+    {
+      "date": "2026-06-15",
+      "personnel": "홍길동, 김철수",
+      "activity": "연속 운전 안정성",
+      "total": 16,
+      "errors": 0,
+      "streak": 28,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-16",
+      "personnel": "홍길동, 김철수",
+      "activity": "후속 로트 그립 검증",
+      "total": 16,
+      "errors": 1,
+      "streak": 14,
+      "notes": "ERR-002 발생 → 연속 리셋"
+    },
+    {
+      "date": "2026-06-17",
+      "personnel": "홍길동, 김철수",
+      "activity": "센서 노이즈 점검",
+      "total": 16,
+      "errors": 1,
+      "streak": 5,
+      "notes": "ERR-005 발생 → 연속 리셋"
+    },
+    {
+      "date": "2026-06-18",
+      "personnel": "홍길동, 김철수",
+      "activity": "그리퍼 패드 점검",
+      "total": 16,
+      "errors": 1,
+      "streak": 6,
+      "notes": "ERR-002 발생 → 연속 리셋"
+    },
+    {
+      "date": "2026-06-19",
+      "personnel": "홍길동, 김철수",
+      "activity": "안정화 연속 운전",
+      "total": 16,
+      "errors": 0,
+      "streak": 22,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-22",
+      "personnel": "홍길동, 김철수",
+      "activity": "무고장 연속 운전",
+      "total": 14,
+      "errors": 0,
+      "streak": 36,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-23",
+      "personnel": "홍길동, 김철수",
+      "activity": "무고장 연속 운전",
+      "total": 15,
+      "errors": 0,
+      "streak": 51,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-24",
+      "personnel": "홍길동, 김철수",
+      "activity": "무고장 연속 운전",
+      "total": 15,
+      "errors": 0,
+      "streak": 66,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-25",
+      "personnel": "홍길동, 김철수",
+      "activity": "무고장 연속 운전",
+      "total": 16,
+      "errors": 0,
+      "streak": 82,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-26",
+      "personnel": "홍길동, 김철수",
+      "activity": "무고장 연속 운전",
+      "total": 16,
+      "errors": 0,
+      "streak": 98,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-29",
+      "personnel": "홍길동, 김철수",
+      "activity": "장기 신뢰성 입증",
+      "total": 14,
+      "errors": 0,
+      "streak": 112,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-30",
+      "personnel": "홍길동, 김철수",
+      "activity": "장기 신뢰성 입증",
+      "total": 14,
+      "errors": 0,
+      "streak": 126,
+      "notes": ""
+    },
+    {
+      "date": "2026-07-01",
+      "personnel": "홍길동, 김철수",
+      "activity": "장기 신뢰성 입증",
+      "total": 14,
+      "errors": 0,
+      "streak": 140,
+      "notes": ""
+    },
+    {
+      "date": "2026-07-02",
+      "personnel": "홍길동, 김철수",
+      "activity": "장기 신뢰성 입증",
+      "total": 14,
+      "errors": 0,
+      "streak": 154,
+      "notes": ""
+    },
+    {
+      "date": "2026-07-03",
+      "personnel": "홍길동, 김철수",
+      "activity": "장기 신뢰성 입증",
+      "total": 14,
+      "errors": 0,
+      "streak": 168,
       "notes": ""
     }
   ],
   "errors": [
     {
       "no": 1,
-      "date": "2026-06-08",
-      "time": "14:32",
-      "cycle": 358,
+      "date": "2026-06-02",
+      "time": "9:12",
+      "cycle": 15,
       "code": "ERR-001",
       "type": "비전 인식 오류",
-      "detail": "픽업 대상 부품의 비전 좌표 인식 실패, 로봇 정지",
-      "cause": "조도 변화로 카메라 노출값 부적합 추정",
-      "action": "조명 LUX 재조정 + 비전 알고리즘 threshold 보정",
+      "detail": "픽업 대상 부품 비전 좌표 인식 실패, 로봇 정지",
+      "cause": "조도 변화로 카메라 노출값 부적합",
+      "action": "조명 LUX 재조정 + 비전 threshold 보정",
       "result": "정상복귀",
-      "owner_sec": "",
+      "owner_sec": "이상혁",
       "owner": "박영희",
+      "detailMore": "현장 조도 320→210 LUX 급감 구간에서 반복 발생. 노출 EV+0.7 보정 후 재현되지 않음. 비전 threshold 0.82→0.74 하향으로 픽업 성공률 회복.",
+      "images": [
+        "ERR-001_1.jpg",
+        "ERR-001_2.jpg"
+      ]
+    },
+    {
+      "no": 2,
+      "date": "2026-06-08",
+      "time": "10:41",
+      "cycle": 64,
+      "code": "ERR-002",
+      "type": "그리퍼 그립 실패",
+      "detail": "부품 표면 마찰계수 편차로 그리핑 실패, 자동 정지",
+      "cause": "부품 표면 코팅 로트 편차",
+      "action": "그리퍼 압력 +5% 조정",
+      "result": "정상복귀",
+      "owner_sec": "이상혁",
+      "owner": "홍길동",
       "detailMore": "",
       "images": []
     },
     {
-      "no": 2,
-      "date": "2026-06-17",
-      "time": "11:08",
-      "cycle": 953,
+      "no": 3,
+      "date": "2026-06-10",
+      "time": "13:05",
+      "cycle": 92,
+      "code": "ERR-003",
+      "type": "경로 계획 오류",
+      "detail": "경유점 보간 오류로 경로 이탈, 자동 정지",
+      "cause": "플래너 펌웨어 보간 버그",
+      "action": "경로 플래너 펌웨어 업데이트",
+      "result": "정상복귀",
+      "owner_sec": "이상혁",
+      "owner": "김철수",
+      "detailMore": "",
+      "images": []
+    },
+    {
+      "no": 4,
+      "date": "2026-06-12",
+      "time": "9:38",
+      "cycle": 120,
+      "code": "ERR-001",
+      "type": "비전 인식 오류",
+      "detail": "역광 조건에서 좌표 인식 지연 후 타임아웃",
+      "cause": "오전 특정 시간대 역광 유입",
+      "action": "차광 커튼 설치 + 노출 재보정",
+      "result": "정상복귀",
+      "owner_sec": "이상혁",
+      "owner": "박영희",
+      "detailMore": "오전 역광 유입 구간에서 ERR-001 재발. 차광 설치 후 해결.",
+      "images": []
+    },
+    {
+      "no": 5,
+      "date": "2026-06-16",
+      "time": "14:22",
+      "cycle": 150,
       "code": "ERR-002",
       "type": "그리퍼 그립 실패",
-      "detail": "부품 표면 마찰계수 편차로 그리핑 실패, 자동 정지",
-      "cause": "부품 표면 코팅 편차 추정",
-      "action": "그리퍼 압력 +5% 조정, 부품 표면 사전 검사 단계 추가",
+      "detail": "재그립 시도 중 슬립 재발",
+      "cause": "코팅 편차 후속 로트",
+      "action": "표면 사전검사 단계 추가",
       "result": "정상복귀",
-      "owner_sec": "",
+      "owner_sec": "이상혁",
       "owner": "홍길동",
       "detailMore": "",
       "images": []
+    },
+    {
+      "no": 6,
+      "date": "2026-06-17",
+      "time": "11:47",
+      "cycle": 175,
+      "code": "ERR-005",
+      "type": "센서 노이즈",
+      "detail": "근접 센서 노이즈로 오감지 경고 후 자가복구",
+      "cause": "인접 설비 EMI 유입",
+      "action": "EMI 필터 추가",
+      "result": "정상복귀",
+      "owner_sec": "이상혁",
+      "owner": "김철수",
+      "detailMore": "자가 복구되어 라인 정지 없음. 경고만 발생.",
+      "images": []
+    },
+    {
+      "no": 7,
+      "date": "2026-06-18",
+      "time": "15:09",
+      "cycle": 190,
+      "code": "ERR-002",
+      "type": "그리퍼 그립 실패",
+      "detail": "조치 적용 후에도 그립 실패 재발생",
+      "cause": "압력 조정만으로 미해결(패드 마모)",
+      "action": "그리퍼 패드 교체 + 재검증 진행",
+      "result": "정상복귀",
+      "owner_sec": "이상혁",
+      "owner": "홍길동",
+      "detailMore": "조치 A-003 적용 후에도 재발 — 근본원인이 패드 마모임을 추가 확인. 패드 교체로 재검증 진행.",
+      "images": [
+        "ERR-002_grip.png"
+      ]
     }
-  ]
+  ],
+  "metrics": {
+    "progress": {
+      "cum": 238,
+      "target": 360,
+      "pct": 66.1
+    },
+    "errorBudget": {
+      "used": 3,
+      "limit": 3,
+      "resets": 1,
+      "lifetimeErrors": 7,
+      "dailyAvg": 0.28,
+      "weeklyAvg": 1.4
+    },
+    "successRate": 98.0,
+    "success": 351,
+    "errorsTotal": 7,
+    "mtbf": {
+      "current": 51,
+      "target": 100
+    },
+    "streak": {
+      "current": 168,
+      "max": 168
+    },
+    "weekly": [
+      {
+        "week": "W1",
+        "weekStart": "2026-06-01",
+        "cumStreak": 41,
+        "weekSuccess": 55,
+        "errors": 1,
+        "errRate": 1.8,
+        "mtbf": 56
+      },
+      {
+        "week": "W2",
+        "weekStart": "2026-06-08",
+        "cumStreak": 12,
+        "weekSuccess": 73,
+        "errors": 3,
+        "errRate": 3.0,
+        "mtbf": 33
+      },
+      {
+        "week": "W3",
+        "weekStart": "2026-06-15",
+        "cumStreak": 22,
+        "weekSuccess": 77,
+        "errors": 3,
+        "errRate": 3.3,
+        "mtbf": 30
+      },
+      {
+        "week": "W4",
+        "weekStart": "2026-06-22",
+        "cumStreak": 98,
+        "weekSuccess": 76,
+        "errors": 0,
+        "errRate": 2.4,
+        "mtbf": 41
+      },
+      {
+        "week": "W5",
+        "weekStart": "2026-06-29",
+        "cumStreak": 168,
+        "weekSuccess": 70,
+        "errors": 0,
+        "errRate": 2.0,
+        "mtbf": 51
+      }
+    ],
+    "throughput": {
+      "total": 358,
+      "daily": 14.3
+    },
+    "confidence": {
+      "level": 0.8,
+      "current": 0.814,
+      "currentPct": 81,
+      "currentCycles": 168,
+      "requiredForLevel": 161,
+      "table": [
+        {
+          "c": 80,
+          "required": 161
+        },
+        {
+          "c": 87,
+          "required": 204
+        },
+        {
+          "c": 90,
+          "required": 230
+        }
+      ]
+    }
+  },
+  "failure": {
+    "top5ByCode": [
+      {
+        "code": "ERR-002",
+        "type": "Gripper Slip",
+        "count": 3,
+        "severity": "Major",
+        "recur": true
+      },
+      {
+        "code": "ERR-001",
+        "type": "Vision Timeout",
+        "count": 2,
+        "severity": "Critical",
+        "recur": true
+      },
+      {
+        "code": "ERR-003",
+        "type": "Path Error",
+        "count": 1,
+        "severity": "Major",
+        "recur": false
+      },
+      {
+        "code": "ERR-005",
+        "type": "Sensor Noise",
+        "count": 1,
+        "severity": "Minor",
+        "recur": false
+      }
+    ],
+    "paretoByType": [
+      {
+        "type": "그리퍼 그립 실패",
+        "count": 3,
+        "cumPct": 43
+      },
+      {
+        "type": "비전 인식 오류",
+        "count": 2,
+        "cumPct": 71
+      },
+      {
+        "type": "경로 계획 오류",
+        "count": 1,
+        "cumPct": 86
+      },
+      {
+        "type": "센서 노이즈",
+        "count": 1,
+        "cumPct": 100
+      }
+    ],
+    "severityDist": {
+      "Critical": 2,
+      "Major": 4,
+      "Minor": 1,
+      "total": 7
+    },
+    "matrix": [
+      {
+        "code": "ERR-002",
+        "type": "Gripper Slip",
+        "severity": "Major",
+        "count": 3,
+        "occ": "보통",
+        "priority": "Medium"
+      },
+      {
+        "code": "ERR-001",
+        "type": "Vision Timeout",
+        "severity": "Critical",
+        "count": 2,
+        "occ": "드묾",
+        "priority": "Medium"
+      },
+      {
+        "code": "ERR-003",
+        "type": "Path Error",
+        "severity": "Major",
+        "count": 1,
+        "occ": "드묾",
+        "priority": "Low"
+      },
+      {
+        "code": "ERR-005",
+        "type": "Sensor Noise",
+        "severity": "Minor",
+        "count": 1,
+        "occ": "드묾",
+        "priority": "Low"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "A-001",
+      "code": "ERR-001",
+      "action": "카메라 노출/threshold 재튜닝 + 차광 설치",
+      "owner": "양희두",
+      "due": "2026-06-13",
+      "status": "완료",
+      "verifyStart": 125,
+      "severity": "Critical",
+      "type": "Vision Timeout",
+      "noFailCycles": 233,
+      "verifyTarget": 200,
+      "verifyProgress": 100,
+      "verifyResult": "검증완료"
+    },
+    {
+      "id": "A-002",
+      "code": "ERR-003",
+      "action": "경로 플래너 펌웨어 업데이트",
+      "owner": "김현일",
+      "due": "2026-06-16",
+      "status": "완료",
+      "verifyStart": 100,
+      "severity": "Major",
+      "type": "Path Error",
+      "noFailCycles": 258,
+      "verifyTarget": 200,
+      "verifyProgress": 100,
+      "verifyResult": "검증완료"
+    },
+    {
+      "id": "A-003",
+      "code": "ERR-002",
+      "action": "그리퍼 압력 조정 + 표면 사전검사 추가",
+      "owner": "양희두",
+      "due": "2026-06-22",
+      "status": "진행중",
+      "verifyStart": 160,
+      "severity": "Major",
+      "type": "Gripper Slip",
+      "noFailCycles": 0,
+      "verifyTarget": 200,
+      "verifyProgress": 0,
+      "verifyResult": "재발"
+    },
+    {
+      "id": "A-004",
+      "code": "ERR-005",
+      "action": "EMI 필터 추가",
+      "owner": "김현일",
+      "due": "2026-06-26",
+      "status": "완료",
+      "verifyStart": 300,
+      "severity": "Minor",
+      "type": "Sensor Noise",
+      "noFailCycles": 58,
+      "verifyTarget": 200,
+      "verifyProgress": 29,
+      "verifyResult": "검증중"
+    }
+  ],
+  "recurrence": {
+    "count": 3,
+    "rate": 42.9,
+    "items": [
+      {
+        "code": "ERR-001",
+        "type": "Vision Timeout",
+        "count": 2
+      },
+      {
+        "code": "ERR-002",
+        "type": "Gripper Slip",
+        "count": 3
+      }
+    ]
+  },
+  "acceptance": {
+    "criteria": [
+      {
+        "key": "완주",
+        "value": "238/360",
+        "status": "prog"
+      },
+      {
+        "key": "MTBF≥100 @80%",
+        "value": "81%",
+        "status": "pass"
+      },
+      {
+        "key": "미해결 Critical=0",
+        "value": "0건",
+        "status": "pass"
+      },
+      {
+        "key": "재발≤0",
+        "value": "3건",
+        "status": "fail"
+      },
+      {
+        "key": "전 결함 검증종결",
+        "value": "2/3",
+        "status": "prog"
+      }
+    ],
+    "passed": 2,
+    "total": 5
+  },
+  "opReliability": {
+    "grade": "주의",
+    "recur": 3,
+    "openCritical": 0,
+    "verifyClosedRate": 67
+  }
 }

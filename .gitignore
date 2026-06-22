@@ -15,9 +15,13 @@ venv/
 # Excel 임시 파일
 ~$*.xlsx
 *.xlsx.bak
+*.xlsx.orig
 
 # Node (혹시 모를 도구 사용 시)
 node_modules/
 
 # 공개 배포 스크립트 (실명 매핑 포함 — 추적 금지)
 scripts/publish_public.sh
+
+# 디자인 작업용 (목업·비교·미리보기 — 공유 불필요)
+design/
