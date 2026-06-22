@@ -325,6 +325,10 @@ function renderSummary(C, m, acc, op) {
   const conf = m.confidence;
   const weekTotals = m.weekly.map(w => w.weekSuccess + w.errors);
   const cumCycles = []; let r = 0; weekTotals.forEach(t => { r += t; cumCycles.push(r); });
+  // 진행률 추세선은 '현재 시도' 기준(리셋 반영). 리셋 경계 = 누적 − 현재시도진행(=attempt_start).
+  // 끝점이 정확히 progress.cum 이 되도록 누적 cycle에서 경계를 빼고 0으로 클립.
+  const resetBoundary = (cumCycles.length ? cumCycles[cumCycles.length - 1] : 0) - m.progress.cum;
+  const attemptSeries = cumCycles.map(v => Math.max(0, v - resetBoundary));
   const goalCrit = acc.criteria[0], goalConf = acc.criteria[1];
   return `
     <div class="sbox-h"><span class="tag">${esc(T('summary.tag'))}</span><h2>${esc(T('summary.title'))}</h2><span class="d">${esc(T('summary.desc'))}</span></div>
@@ -391,7 +395,7 @@ function renderSummary(C, m, acc, op) {
       </div>
     </div>
     <div class="kpis">
-      <div class="kpi"><div><div class="k">${esc(T('summary.kpiProgress'))}</div><div class="v">${m.progress.pct}<small>%</small></div><div class="sub">${esc(TT('summary.kpiProgressSub', { cum: m.progress.cum, target: m.progress.target }))}</div></div>${spark(cumCycles, '#2E89D6')}</div>
+      <div class="kpi"><div><div class="k">${esc(T('summary.kpiProgress'))}</div><div class="v">${m.progress.pct}<small>%</small></div><div class="sub">${esc(TT('summary.kpiProgressSub', { cum: m.progress.cum, target: m.progress.target }))}</div></div>${spark(attemptSeries, '#2E89D6')}</div>
       <div class="kpi"><div><div class="k">${esc(T('summary.kpiSuccess'))}</div><div class="v">${m.successRate}<small>%</small></div><div class="sub">${esc(TT('summary.kpiSuccessSub', { success: m.success, errors: m.errorsTotal }))}</div></div>${spark(m.weekly.map(w => w.weekSuccess), '#3E9B6E')}</div>
       <div class="kpi"><div><div class="k">${esc(T('summary.kpiMtbf'))}</div><div class="v">${m.mtbf.current}<small>Cy</small></div><div class="sub">${esc(TT('summary.kpiMtbfSub', { target: m.mtbf.target }))}</div></div>${spark(m.weekly.map(w => w.mtbf), '#2E89D6')}</div>
       <div class="kpi"><div><div class="k">${esc(T('summary.kpiRecur'))}</div><div class="v">${DATA.recurrence.rate}<small>%</small></div><div class="sub">${esc(T('summary.kpiRecurSub'))}</div></div>${spark(m.weekly.map(w => w.errors), '#E08600')}</div>

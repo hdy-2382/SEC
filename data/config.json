@@ -137,7 +137,7 @@
       "opRelMini": "규칙 기반 · 신규 데이터 0칸",
       "heroLabel": "MTBI · 양산평가 진행",
       "heroTitle": "누적 평가 진행률",
-      "heroCur": "현재",
+      "heroCur": "현재 시도",
       "heroTarget": "목표",
       "heroStreak": "연속 무에러",
       "heroMax": "최대 기록",
