@@ -96,7 +96,15 @@
       "swFoot": "⬜ 미완성: {incomplete} · 🟠 진행: {inprog}",
       "swNone": "없음",
       "swImage": "data/assets/sw_status.png",
-      "swImageHint": "사진 영역 (data/assets/sw_status.png)"
+      "swImageHint": "사진 영역 (data/assets/sw_status.png)",
+      "layout": {
+        "_help": "사진/글자 비율 직접 조절. 값만 바꾸면 화면에 바로 반영됨",
+        "lineImageHeight": 300,
+        "lineImageFit": "contain",
+        "swPhotoRatio": 3,
+        "swContentRatio": 1,
+        "swImageFit": "contain"
+      }
     },
     "period": {
       "label": "평가 기간",

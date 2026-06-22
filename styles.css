@@ -99,10 +99,12 @@
   .mod{display:flex;align-items:center;gap:8px;font-size:12px}.mod .nm{flex:1}
   .mod .bar{width:64px;height:6px;border-radius:5px;background:var(--line-soft);overflow:hidden}.mod .bar i{display:block;height:100%}
   .mod .pc{font-size:11px;color:var(--muted);width:34px;text-align:right}
-  .layout-img{position:relative;width:100%;height:300px;border-radius:10px;overflow:hidden;background:#0c1f3b}
+  /* 설비평가: 사진(위) + 캡션(아래) 분리. 높이는 inline style(config)로 지정 */
+  .layout-figure{display:flex;flex-direction:column}
+  .layout-img{position:relative;width:100%;height:300px;border-radius:10px 10px 0 0;overflow:hidden;background:#0c1f3b}
   .layout-img img{width:100%;height:100%;object-fit:contain;display:block}
-  .layout-cap{position:absolute;left:0;right:0;bottom:0;padding:22px 14px 10px;background:linear-gradient(transparent,rgba(8,24,48,.88));color:#fff;font-size:12px}
-  .layout-cap b{color:#9fd0ff}
+  .layout-cap{padding:10px 13px;background:var(--card-alt);border:1px solid var(--line-soft);border-top:none;border-radius:0 0 10px 10px;color:var(--ink-soft);font-size:12px;line-height:1.45}
+  .layout-cap b{color:var(--sky)}
   /* 소프트웨어 개발현황 2열: 사진(3) | 기존 내용(1) */
   .sw-2col{display:grid;grid-template-columns:3fr 1fr;gap:14px;align-items:stretch;margin-top:8px}
   .sw-2col .mods{grid-template-columns:1fr;gap:6px}
@@ -110,7 +112,7 @@
   /* 설비평가·SW 칸: 패널 크기는 고정, 사진만 칸 안에서 채움(오토스케일) */
   .status-grid{align-items:stretch}
   .status-grid>.panel{display:flex;flex-direction:column}
-  .status-grid .layout-img{flex:1 1 auto;height:auto;min-height:300px}
+  .status-grid .layout-figure{flex:1 1 auto}
   .status-grid .sw-2col{flex:1 1 auto;align-items:stretch;min-height:0}
   .status-grid .sw-photo{height:100%;min-height:0}
   .sw-photo{position:relative;border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;background:var(--sky-soft);min-height:150px;display:flex;align-items:center;justify-content:center}

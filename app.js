@@ -258,6 +258,12 @@ function renderStatus(C, m) {
   }).join('');
   const incomplete = sw.filter(s => s.pct < 50).map(s => `${esc(s.name)}(${s.pct}%)`).join('·') || esc(T('status.swNone'));
   const inprog = sw.filter(s => s.pct >= 50 && s.pct < 100).map(s => esc(s.name)).join('·') || esc(T('status.swNone'));
+  // 사진/글자 비율 — config(ui.status.layout)에서 직접 조절
+  const Lh = T('status.layout.lineImageHeight', 300);
+  const Lfit = T('status.layout.lineImageFit', 'contain');
+  const swP = T('status.layout.swPhotoRatio', 3);
+  const swC = T('status.layout.swContentRatio', 1);
+  const swFit = T('status.layout.swImageFit', 'contain');
   return `
     <div class="sbox-h"><span class="tag">${esc(T('status.tag'))}</span><h2>${esc(T('status.title'))}</h2><span class="d">${esc(T('status.desc'))}</span></div>
     <div class="panel" style="margin-bottom:14px">
@@ -269,13 +275,16 @@ function renderStatus(C, m) {
       <div class="panel">
         <div class="row-flex"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
         <div class="psub">${esc(T('status.lineSub'))}</div>
-        <div class="layout-img"><img src="${esc(img)}" alt="${esc(T('status.lineTitle'))}" onerror="this.style.opacity=.25"><div class="layout-cap">${cap}</div></div>
+        <div class="layout-figure">
+          <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('status.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
+          <div class="layout-cap">${cap}</div>
+        </div>
       </div>
       <div class="panel">
         <div class="row-flex"><h3>${esc(T('status.swTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.swBadge', { n: swAvg }))}</span></div>
         <div class="psub">${esc(T('status.swSub'))}</div>
-        <div class="sw-2col">
-          <div class="sw-photo"><img src="${esc(T('status.swImage', 'data/assets/sw_status.png'))}" alt="${esc(T('status.swTitle'))}" onerror="this.style.display='none';this.parentNode.classList.add('empty')"><span class="ph">${esc(T('status.swImageHint', '사진 영역'))}</span></div>
+        <div class="sw-2col" style="grid-template-columns:${swP}fr ${swC}fr">
+          <div class="sw-photo"><img src="${esc(T('status.swImage', 'data/assets/sw_status.png'))}" alt="${esc(T('status.swTitle'))}" style="object-fit:${esc(swFit)}" onerror="this.style.display='none';this.parentNode.classList.add('empty')"><span class="ph">${esc(T('status.swImageHint', '사진 영역'))}</span></div>
           <div class="sw-content">
             <div class="mods">${mods}</div>
             <div class="mini" style="margin-top:10px">${TT('status.swFoot', { incomplete: `<b>${incomplete}</b>`, inprog })}</div>
