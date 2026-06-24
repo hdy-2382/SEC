@@ -104,20 +104,27 @@ def simulate():
     events = sorted(ERROR_EVENTS, key=lambda e: e[0])
     daily, errlog = [], []
     cum = 0
-    last_err = 0          # 마지막 에러가 난 누적 Cycle
     no = 0
     for date, total, act in zip(DATES, TOTALS, ACTIVITIES):
         prev = cum
         cum += total
         day_events = [e for e in events if prev < e[0] <= cum]
         for e in day_events:
-            last_err = e[0]
             no += 1
             cyc, code, typ, det, cause, action, res, sec, ven, more, imgs = e
             errlog.append([no, date, e[0], code, typ, det, cause, action, res, sec, ven, more, imgs])
-        streak = cum - last_err                     # 마지막 에러 이후 무에러 Cycle
-        note = f"{', '.join(x[1] for x in day_events)} 발생 → 연속 리셋" if day_events else ""
-        daily.append([date, PERSONNEL, act, total, len(day_events), streak, note])
+        # ── 업체 실제 양식: 하루를 에러 기준으로 여러 행(세그먼트)으로 분할 ──
+        # 각 세그먼트 = (에러 전 연속 성공) + (에러 1). '연속성공'은 그 세그먼트의 당일 연속 성공.
+        start = prev
+        for e in day_events:
+            p = e[0]
+            succ = p - start - 1                    # 에러 직전까지 연속 성공
+            daily.append([date, PERSONNEL, act, p - start, 1, succ,
+                          f"{e[1]} 발생 → 연속 리셋"])
+            start = p
+        tail = cum - start                          # 마지막 에러 이후(또는 무에러일) 성공 구간
+        if tail > 0 or not day_events:
+            daily.append([date, PERSONNEL, act, tail, 0, tail, ""])
     return daily, errlog, cum
 
 

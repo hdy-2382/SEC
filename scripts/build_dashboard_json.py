@@ -555,8 +555,27 @@ def _compute(daily, errors, config, codes, actions) -> dict:
     cum_total = sum(d["total"] for d in daily)
     cum_err = sum(d["errors"] for d in daily)
     success = max(0, cum_total - cum_err)
-    streak_cur = daily[-1]["streak"] if daily else 0
-    streak_max = max((d["streak"] for d in daily), default=0)
+    # ── 연속 성공 누적 재계산 + 에러 위치 산출 (업체 세그먼트 양식 대응) ──
+    # 업체는 하루를 에러 기준으로 여러 행(세그먼트)으로 쪼개 적고, '연속성공'은 그 세그먼트의
+    # 당일 연속 성공 값이다(누적 아님). 그래서 연속성공 컬럼을 그대로 믿지 않고
+    #   · 누적 연속 = (total − 에러)를 행 순서대로 더하되, 에러가 있는 행 끝에서 0으로 리셋
+    #   · 에러 위치(누적 Cycle) = 성공(연속달성) 뒤에 에러가 온다고 보고 직접 산출
+    # 으로 재계산한다. 현재 횟수(에러버짓 리셋)도 이 위치를 쓴다(에러로그 회차 비의존).
+    run = 0; streak_max = 0; _cum = 0
+    err_cycles = []
+    for d in daily:                       # daily는 날짜순(동일 날짜는 입력 순서 유지)
+        succ = max(0, d["total"] - d["errors"])
+        peak = run + succ                 # 세그먼트 내 성공이 앞쪽 → 끊기기 직전 누적 연속
+        streak_max = max(streak_max, peak)
+        for k in range(d["errors"]):
+            err_cycles.append(_cum + succ + 1 + k)
+        run = 0 if d["errors"] else peak  # 에러 있는 행은 끝에서 리셋
+        d["_runStreak"] = run
+        _cum += d["total"]
+    streak_cur = run
+    if len(err_cycles) != len(errors):
+        print(f"[build] ⚠ 일일평가 에러 합({len(err_cycles)}) ≠ 에러로그 행수({len(errors)}) "
+              f"— 현재횟수는 일일평가 기준으로 산출")
 
     # ── 고장(failure) 판정 ──────────────────────────────────────
     # 에러 ≠ 고장. 에러로그의 코드/유형에 failureKeyword("고장")가 포함된 항목만 '진짜 고장'.
@@ -579,7 +598,7 @@ def _compute(daily, errors, config, codes, actions) -> dict:
     attempt_start = 0          # 현재 시도가 시작된 누적 Cycle
     budget_used = 0            # 현재 시도의 누적 에러 (0~error_limit)
     budget_resets = 0          # 버짓 초과로 시도가 리셋된 횟수
-    for c in sorted(e["cycle"] for e in errors if e.get("cycle")):
+    for c in err_cycles:                       # 일일평가 세그먼트에서 산출한 에러 위치
         if budget_used + 1 > error_limit:      # 다음 에러가 한도 초과 → 시도 실패·리셋
             budget_resets += 1
             attempt_start = c                  # 이 에러 지점부터 새 시도 (이 에러는 실패로 소진)
@@ -595,7 +614,10 @@ def _compute(daily, errors, config, codes, actions) -> dict:
         if wk is None:
             continue
         w = weekly.setdefault(wk, {"total": 0, "errors": 0, "lastStreak": 0})
-        w["total"] += d["total"]; w["errors"] += d["errors"]; w["lastStreak"] = d["streak"]
+        w["total"] += d["total"]; w["errors"] += d["errors"]
+        w["lastStreak"] = d.get("_runStreak", 0)   # 재계산한 누적 연속(컬럼 아님)
+    for d in daily:
+        d.pop("_runStreak", None)                  # 내부 계산용 필드 — 출력 JSON에는 남기지 않음
     # 주차별 고장 건수(MTBF=Mean Cycles Between Failures 산출용 — 에러 아님)
     fail_wk = {}
     for e in failures:
