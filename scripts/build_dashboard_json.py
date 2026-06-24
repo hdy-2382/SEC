@@ -425,7 +425,9 @@ def _load_config() -> dict:
 CODE_FIELDS = {"code": ["코드"], "type": ["유형"], "severity": ["등급", "심각도"], "desc": ["설명"]}
 ACTION_FIELDS = {"id": ["조치id"], "code": ["대상코드"], "action": ["조치내용"],
                  "owner": ["담당"], "due": ["목표일"], "status": ["상태"],
-                 "verifyStart": ["검증시작cycle", "검증시작"]}
+                 # 검증시작: 누적 cycle(숫자) 또는 검증 시작일(날짜) 둘 다 허용.
+                 #   날짜를 적으면 빌드가 그날까지의 누적 Cycle로 자동 환산한다.
+                 "verifyStart": ["검증시작cycle", "검증시작일", "검증시작", "검증일", "조치완료일"]}
 
 
 def _norm_sev(v) -> str:
@@ -504,11 +506,21 @@ def _load_mgmt() -> tuple[list[dict], list[dict]]:
     codes = [{"code": _cell_to_str(c["code"]), "type": _cell_to_str(c["type"]),
               "severity": _norm_sev(c["severity"]), "desc": _cell_to_str(c["desc"])}
              for c in raw_c if _cell_to_str(c["code"])]
-    actions = [{"id": _cell_to_str(a["id"]), "code": _cell_to_str(a["code"]),
-                "action": _cell_to_str(a["action"]), "owner": _cell_to_str(a["owner"]),
-                "due": _cell_to_str(a["due"]), "status": _cell_to_str(a["status"]),
-                "verifyStart": _cell_to_int(a["verifyStart"])}
-               for a in raw_a if _cell_to_str(a["id"])]
+    actions = []
+    for a in raw_a:
+        if not _cell_to_str(a["id"]):
+            continue
+        # 검증시작 칸: 날짜(YYYY-MM-DD)면 verifyStartDate로 넘겨 _compute에서 누적 Cycle로
+        # 환산하고, 숫자면 기존처럼 verifyStart(cycle)로 직접 사용한다.
+        vs_str = _cell_to_str(a["verifyStart"])
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", vs_str):
+            vs_cycle, vs_date = 0, vs_str
+        else:
+            vs_cycle, vs_date = _cell_to_int(a["verifyStart"]), ""
+        actions.append({"id": _cell_to_str(a["id"]), "code": _cell_to_str(a["code"]),
+                        "action": _cell_to_str(a["action"]), "owner": _cell_to_str(a["owner"]),
+                        "due": _cell_to_str(a["due"]), "status": _cell_to_str(a["status"]),
+                        "verifyStart": vs_cycle, "verifyStartDate": vs_date})
     return codes, actions
 
 
@@ -632,10 +644,14 @@ def _compute(daily, errors, config, codes, actions) -> dict:
                    for c, n in cnt.items() if n > 1]
 
     # 조치/검증 (조치 후 verify_cy Cycle 무발생 → 검증완료 자동판정)
+    # 검증시작일(날짜)을 적은 경우 그 날짜까지의 누적 Cycle로 환산해 vs로 사용한다.
+    def _cycle_at_date(dstr):
+        return sum(d["total"] for d in daily if d["date"] <= dstr) if dstr else 0
+
     act_out = []
     open_critical = verified = relevant = 0
     for a in actions:
-        c = a["code"]; vs = a["verifyStart"] or 0
+        c = a["code"]; vs = a["verifyStart"] or _cycle_at_date(a.get("verifyStartDate", ""))
         later_same = any(e["code"] == c and e["cycle"] > vs for e in errors) if vs else False
         no_fail = 0 if (later_same or not vs) else max(0, cum_total - vs)
         if later_same:
@@ -654,6 +670,7 @@ def _compute(daily, errors, config, codes, actions) -> dict:
         if sev == "Critical" and result != "검증완료":
             open_critical += 1
         act_out.append({**a, "severity": sev, "type": type_of.get(c, ""),
+                        "verifyStartCycle": vs,
                         "noFailCycles": no_fail, "verifyTarget": verify_cy,
                         "verifyProgress": round(min(1, no_fail / verify_cy) * 100) if verify_cy else 0,
                         "verifyResult": result})
