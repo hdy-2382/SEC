@@ -38,7 +38,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw"
 OUT_PATH = ROOT / "data" / "dashboard.json"
 CONFIG_PATH = ROOT / "data" / "config.json"
-MGMT_PATH = ROOT / "data" / "mgmt.xlsx"
+MGMT_PATH = ROOT / "data" / "SEC_REPORT.xlsx"
 
 
 # ── 컬럼 헤더 매핑 ─────────────────────────────────────────────
@@ -411,7 +411,7 @@ def _load_workbook_rows(src: Path) -> tuple[list[list], list[list]]:
         return daily_rows, errors_rows
 
 
-# ── 관리 데이터(config + mgmt.xlsx) 로딩 ─────────────────────────
+# ── 관리 데이터(config + SEC_REPORT.xlsx) 로딩 ─────────────────────────
 def _load_config() -> dict:
     if not CONFIG_PATH.exists():
         return {}
@@ -470,7 +470,7 @@ def _load_mgmt_rows_xlwings() -> tuple[list[list], list[list]]:
         import xlwings as xw
     except ImportError as e:
         raise SystemExit(
-            "xlwings 미설치. DRM 보호된 mgmt.xlsx를 읽으려면 'pip install xlwings' 후 재시도. "
+            "xlwings 미설치. DRM 보호된 SEC_REPORT.xlsx를 읽으려면 'pip install xlwings' 후 재시도. "
             "(Windows + Excel 설치 필수)"
         ) from e
 
@@ -493,13 +493,13 @@ def _load_mgmt_rows_xlwings() -> tuple[list[list], list[list]]:
 
 def _load_mgmt() -> tuple[list[dict], list[dict]]:
     if not MGMT_PATH.exists():
-        print("[build] mgmt.xlsx 없음 — 코드마스터/조치 없이 진행 (generate_mgmt_template.py로 생성)")
+        print("[build] SEC_REPORT.xlsx 없음 — 코드마스터/조치 없이 진행 (generate_mgmt_template.py로 생성)")
         return [], []
     try:
         code_rows, action_rows = _load_mgmt_rows_openpyxl()
     except zipfile.BadZipFile:
         # DRM 래핑 추정 — openpyxl은 zip 구조가 아니라고 거부함 (사내 보안문서 저장 시)
-        print("[build] mgmt.xlsx openpyxl 실패 (DRM 추정) → xlwings로 Excel 통한 재시도")
+        print("[build] SEC_REPORT.xlsx openpyxl 실패 (DRM 추정) → xlwings로 Excel 통한 재시도")
         code_rows, action_rows = _load_mgmt_rows_xlwings()
     raw_c = _read_mgmt_rows(code_rows, CODE_FIELDS)
     raw_a = _read_mgmt_rows(action_rows, ACTION_FIELDS)

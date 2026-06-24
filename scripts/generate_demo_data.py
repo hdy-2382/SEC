@@ -5,7 +5,7 @@ generate_demo_data.py
 
 생성물:
   data/raw/260601_SEC양산평가.xlsx   ← 업체 제출 양식(일일평가/에러로그) 25일치
-  data/mgmt.xlsx                      ← PM 관리(코드마스터/조치검증)
+  data/SEC_REPORT.xlsx                ← PM 관리(코드마스터/조치검증)
   data/errors/*.jpg|png               ← 에러 모달 사진 플레이스홀더
 
 정합성 규칙(이 스크립트가 보장):
@@ -29,7 +29,7 @@ from openpyxl.utils import get_column_letter
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW_PATH = ROOT / "data" / "raw" / "260601_SEC양산평가.xlsx"
-MGMT_PATH = ROOT / "data" / "mgmt.xlsx"
+MGMT_PATH = ROOT / "data" / "SEC_REPORT.xlsx"
 ERRORS_DIR = ROOT / "data" / "errors"
 
 # ── 시나리오 정의 ────────────────────────────────────────────────

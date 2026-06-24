@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T01:41:54Z",
+  "generatedAt": "2026-06-24T01:51:04Z",
   "source": "260601_SEC양산평가.xlsx",
   "config": {
     "project": {
@@ -335,7 +335,7 @@
         "s5ClosedSub": "Critical·Major 대비",
         "s5ActTitle": "조치 관리 (Action Items)",
         "s5ActBadge": "전체 표",
-        "s5ActSub": "유지 데이터: mgmt.xlsx 「조치검증」",
+        "s5ActSub": "유지 데이터: SEC_REPORT.xlsx 「조치검증」",
         "s5ActH": [
           "ID",
           "조치 항목",
@@ -382,7 +382,7 @@
         "rowPeriod": "평가 기간",
         "rowOwner": "담당",
         "rowSource": "데이터 출처",
-        "rowSourceVal": "업체 xlsx + mgmt.xlsx → build_dashboard_json.py → git",
+        "rowSourceVal": "업체 xlsx + SEC_REPORT.xlsx → build_dashboard_json.py → git",
         "critTitle": "평가 · 합격 기준",
         "critSub": "CRITERIA & METHOD · 사전 합의 · 수정 가능",
         "critPass": "🎯 합격(계약)",

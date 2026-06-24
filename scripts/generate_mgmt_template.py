@@ -1,12 +1,12 @@
 """
 generate_mgmt_template.py
 -------------------------
-PM가 유지하는 관리 데이터 양식(data/mgmt.xlsx)을 생성한다. (업체에 보내지 않음)
+PM가 유지하는 관리 데이터 양식(data/SEC_REPORT.xlsx)을 생성한다. (업체에 보내지 않음)
 
 시트:
   - 안내       : 작성 방법
   - 코드마스터  : 에러 코드 → 유형 / 등급(Critical·Major·Minor) / 설명   (등급=심각도 S)
-  - 조치검증    : 조치ID / 대상코드 / 조치내용 / 담당 / 목표일 / 상태 / 검증시작Cycle
+  - 조치검증    : 조치ID / 대상코드 / 조치내용 / 담당 / 목표일 / 상태 / 검증시작(날짜 또는 누적Cycle)
 
 build_dashboard_json.py 가 이 파일을 읽어 업체 데이터와 병합한다.
 업체 양식(일일평가/에러로그)은 이 파일과 무관하게 그대로 유지된다.
@@ -21,7 +21,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT_PATH = ROOT / "data" / "mgmt.xlsx"
+OUT_PATH = ROOT / "data" / "SEC_REPORT.xlsx"
 
 INK = "0F2E54"; NAVY = "1E4A7A"; SKY = "2E89D6"; SKY_SOFT = "EAF2FB"
 ZEBRA = "F5F9FE"; LINE = "C9DAEE"; WHITE = "FFFFFF"
