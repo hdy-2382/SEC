@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T23:59:37Z",
+  "generatedAt": "2026-06-24T01:26:05Z",
   "source": "260601_SEC양산평가.xlsx",
   "config": {
     "project": {
@@ -124,6 +124,7 @@
         "updatedPrefix": "업데이트 "
       },
       "nav": {
+        "all": "전체 보기",
         "status": "개발 현황",
         "summary": "평가 결과 요약",
         "stepsGroup": "신뢰성 입증 6단계 흐름",
@@ -162,7 +163,16 @@
         "swFoot": "⬜ 미완성: {incomplete} · 🟠 진행: {inprog}",
         "swNone": "없음",
         "swImage": "data/assets/sw_status.png",
-        "swImageHint": "사진 영역 (data/assets/sw_status.png)"
+        "swImageHint": "사진 영역 (data/assets/sw_status.png)",
+        "layout": {
+          "_help": "사진/글자 비율 직접 조절. 값만 바꾸면 화면에 바로 반영됨",
+          "lineImageHeight": 300,
+          "lineImageFit": "contain",
+          "swImageHeight": 240,
+          "swPhotoRatio": 3,
+          "swContentRatio": 1,
+          "swImageFit": "contain"
+        }
       },
       "period": {
         "label": "평가 기간",
@@ -194,7 +204,7 @@
         "opRelMini": "규칙 기반 · 신규 데이터 0칸",
         "heroLabel": "MTBI · 양산평가 진행",
         "heroTitle": "누적 평가 진행률",
-        "heroCur": "현재",
+        "heroCur": "현재 시도",
         "heroTarget": "목표",
         "heroStreak": "연속 무에러",
         "heroMax": "최대 기록",
@@ -422,12 +432,6 @@
       "type": "Path Error",
       "severity": "Major",
       "desc": "경로 계획 오류"
-    },
-    {
-      "code": "ERR-005",
-      "type": "Sensor Noise",
-      "severity": "Minor",
-      "desc": "센서 노이즈/EMI"
     }
   ],
   "daily": [
@@ -899,7 +903,7 @@
       },
       {
         "code": "ERR-005",
-        "type": "Sensor Noise",
+        "type": "",
         "count": 1,
         "severity": "Minor",
         "recur": false
@@ -960,7 +964,7 @@
       },
       {
         "code": "ERR-005",
-        "type": "Sensor Noise",
+        "type": "",
         "severity": "Minor",
         "count": 1,
         "occ": "드묾",
@@ -1002,7 +1006,7 @@
     {
       "id": "A-003",
       "code": "ERR-002",
-      "action": "그리퍼 압력 조정 + 표면 사전검사 추가",
+      "action": "그리퍼 압 tovsoildjfosiejfsleijf",
       "owner": "양희두",
       "due": "2026-06-22",
       "status": "진행중",
@@ -1013,21 +1017,6 @@
       "verifyTarget": 200,
       "verifyProgress": 0,
       "verifyResult": "재발"
-    },
-    {
-      "id": "A-004",
-      "code": "ERR-005",
-      "action": "EMI 필터 추가",
-      "owner": "김현일",
-      "due": "2026-06-26",
-      "status": "완료",
-      "verifyStart": 300,
-      "severity": "Minor",
-      "type": "Sensor Noise",
-      "noFailCycles": 58,
-      "verifyTarget": 200,
-      "verifyProgress": 29,
-      "verifyResult": "검증중"
     }
   ],
   "recurrence": {

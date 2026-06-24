@@ -439,8 +439,7 @@ def _norm_sev(v) -> str:
     return _cell_to_str(v) or "Minor"
 
 
-def _read_mgmt_sheet(ws, fields) -> list[dict]:
-    rows = [list(r) for r in ws.iter_rows(values_only=True)]
+def _read_mgmt_rows(rows, fields) -> list[dict]:
     if not rows:
         return []
     hidx = _find_header_row(rows, fields)
@@ -453,17 +452,55 @@ def _read_mgmt_sheet(ws, fields) -> list[dict]:
     return out
 
 
-def _load_mgmt() -> tuple[list[dict], list[dict]]:
-    if not MGMT_PATH.exists():
-        print("[build] mgmt.xlsx 없음 — 코드마스터/조치 없이 진행 (generate_mgmt_template.py로 생성)")
-        return [], []
+def _load_mgmt_rows_openpyxl() -> tuple[list[list], list[list]]:
     from openpyxl import load_workbook
     wb = load_workbook(MGMT_PATH, data_only=True)
     names = wb.sheetnames
     cm = _find_name(names, ["코드마스터", "코드", "code"])
     am = _find_name(names, ["조치검증", "조치", "action"])
-    raw_c = _read_mgmt_sheet(wb[cm], CODE_FIELDS) if cm else []
-    raw_a = _read_mgmt_sheet(wb[am], ACTION_FIELDS) if am else []
+    code_rows   = [list(r) for r in wb[cm].iter_rows(values_only=True)] if cm else []
+    action_rows = [list(r) for r in wb[am].iter_rows(values_only=True)] if am else []
+    return code_rows, action_rows
+
+
+def _load_mgmt_rows_xlwings() -> tuple[list[list], list[list]]:
+    try:
+        import xlwings as xw
+    except ImportError as e:
+        raise SystemExit(
+            "xlwings 미설치. DRM 보호된 mgmt.xlsx를 읽으려면 'pip install xlwings' 후 재시도. "
+            "(Windows + Excel 설치 필수)"
+        ) from e
+
+    app = xw.App(visible=False, add_book=False)
+    app.display_alerts = False
+    try:
+        wb = app.books.open(str(MGMT_PATH), update_links=False, read_only=True)
+        try:
+            names = [s.name for s in wb.sheets]
+            cm = _find_name(names, ["코드마스터", "코드", "code"])
+            am = _find_name(names, ["조치검증", "조치", "action"])
+            code_rows   = _xlwings_sheet_rows(wb.sheets[cm]) if cm else []
+            action_rows = _xlwings_sheet_rows(wb.sheets[am]) if am else []
+            return code_rows, action_rows
+        finally:
+            wb.close()
+    finally:
+        app.quit()
+
+
+def _load_mgmt() -> tuple[list[dict], list[dict]]:
+    if not MGMT_PATH.exists():
+        print("[build] mgmt.xlsx 없음 — 코드마스터/조치 없이 진행 (generate_mgmt_template.py로 생성)")
+        return [], []
+    try:
+        code_rows, action_rows = _load_mgmt_rows_openpyxl()
+    except zipfile.BadZipFile:
+        # DRM 래핑 추정 — openpyxl은 zip 구조가 아니라고 거부함 (사내 보안문서 저장 시)
+        print("[build] mgmt.xlsx openpyxl 실패 (DRM 추정) → xlwings로 Excel 통한 재시도")
+        code_rows, action_rows = _load_mgmt_rows_xlwings()
+    raw_c = _read_mgmt_rows(code_rows, CODE_FIELDS)
+    raw_a = _read_mgmt_rows(action_rows, ACTION_FIELDS)
     codes = [{"code": _cell_to_str(c["code"]), "type": _cell_to_str(c["type"]),
               "severity": _norm_sev(c["severity"]), "desc": _cell_to_str(c["desc"])}
              for c in raw_c if _cell_to_str(c["code"])]
