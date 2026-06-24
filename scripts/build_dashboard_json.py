@@ -544,7 +544,7 @@ _PRIORITY = {
 
 
 # ── 파생 지표 계산 (신뢰성 대시보드 v5) ──────────────────────────
-def _compute(daily, errors, config, codes, actions) -> dict:
+def _compute(daily, errors, config, codes, actions, now=None) -> dict:
     acc = config.get("acceptance") or {}
     target = acc.get("targetCycle") or config.get("project", {}).get("target", 360)
     mtbf_t = acc.get("mtbfTargetCycle", 100)
@@ -589,6 +589,9 @@ def _compute(daily, errors, config, codes, actions) -> dict:
     last_fail_cycle = max((e["cycle"] for e in failures if e.get("cycle")), default=0)
     failure_free = max(0, cum_total - last_fail_cycle)   # 마지막 고장 이후 누적 Cycle(고장 0건이면 전체)
     mtbf_cur = round(cum_total / failure_count) if failure_count else cum_total
+    # 기간 에러율(%) = 에러(인터럽트) 발생률. 목표는 config.acceptance.errRateTargetPct(최근 4주 기준 <N%).
+    err_rate_cur = round(cum_err / cum_total * 100, 1) if cum_total else 0
+    err_rate_t = acc.get("errRateTargetPct")
 
     # ── 에러 버짓 리셋 모델 ──────────────────────────────────────
     # 한 '시도(attempt)'는 연속 target Cycle + 에러 ≤ error_limit 를 동시에 만족해야 합격.
@@ -638,6 +641,74 @@ def _compute(daily, errors, config, codes, actions) -> dict:
             "errRate": round(run_e / run_t * 100, 1) if run_t else 0,
             "mtbf": round(run_t / run_f) if run_f else run_t,
         })
+
+    # ── 기간별 에러율 안정화 (에러발생확률↓ → 안정화 입증) ────────────
+    # '에러 건수'가 아니라 '정규화 에러율(건/100Cycle)'을 기간별로 봐서 추세가 내려가는지(안정화)를 본다.
+    #  · rate    = 그 기간 실측 에러율(건/100Cy)  → 막대
+    #  · cumRate = 시작~그 기간 누적 평균 에러율   → 안정화 추세선
+    # 기본 월별(config ui.steps.errRateBin="month"). 표본이 짧으면 "week"로 주별 추세 확인 가능.
+    err_bin = str(config.get("ui", {}).get("steps", {}).get("errRateBin", "month")).lower()
+    buckets, order = {}, []
+    for d in sorted(daily, key=lambda x: x["date"]):
+        ds = str(d["date"])[:10]
+        key = _iso_week(ds) if err_bin == "week" else ds[:7]   # 주(y,w) 또는 'YYYY-MM'
+        if key is None:
+            continue
+        if key not in buckets:
+            buckets[key] = {"cycles": 0, "errors": 0, "d0": ds, "d1": ds}
+            order.append(key)
+        buckets[key]["cycles"] += d["total"]
+        buckets[key]["errors"] += d["errors"]
+        buckets[key]["d0"] = min(buckets[key]["d0"], ds)
+        buckets[key]["d1"] = max(buckets[key]["d1"], ds)
+    errrate_list = []
+    er_t = er_e = 0
+    _md = lambda s: f"{int(s[5:7])}/{int(s[8:10])}"          # 'YYYY-MM-DD' → 'M/D'
+    for i, key in enumerate(order):
+        b = buckets[key]
+        er_t += b["cycles"]; er_e += b["errors"]
+        label = f"{i + 1}주차" if err_bin == "week" else f"{int(key[5:7])}월"
+        rng = _md(b["d0"]) if b["d0"] == b["d1"] else f"{_md(b['d0'])}~{_md(b['d1'])}"
+        errrate_list.append({
+            "period": label, "range": rng, "cycles": b["cycles"], "errors": b["errors"],
+            "rate": round(b["errors"] / b["cycles"] * 100, 1) if b["cycles"] else 0,
+            "cumRate": round(er_e / er_t * 100, 1) if er_t else 0,
+            "mtbi": round(b["cycles"] / b["errors"]) if b["errors"] else b["cycles"],
+        })
+
+    # ── 최근 N주 롤링 윈도우 에러율 (업데이트일 기준 'as of now') ──────────
+    # 양산 전환 시 월별 편차 보상: 캘린더로 쪼개지 않고 업데이트일에서 N주를 뒤로 묶어 본다.
+    #   · 윈도우가 비면(데이터가 오래됨) 최신 데이터일 기준으로 폴백
+    #   · 윈도우 Cycle이 recentMinCycles 미만이면 lowSample=True (표본부족 표시)
+    _steps = config.get("ui", {}).get("steps", {})
+    recent_weeks = int(_steps.get("recentWeeks", 4) or 4)
+    recent_min = int(_steps.get("recentMinCycles", 20) or 0)
+    anchor = (now or datetime.now(timezone.utc)).date()
+    daily_dates = [d["date"][:10] for d in daily if d.get("date")]
+
+    def _window(hi):
+        lo = hi - timedelta(days=recent_weeks * 7 - 1)
+        cyc = err = 0
+        for d in daily:
+            if lo.isoformat() <= str(d["date"])[:10] <= hi.isoformat():
+                cyc += d["total"]; err += d["errors"]
+        return lo, cyc, err
+
+    win_from, rw_cyc, rw_err = _window(anchor)
+    win_to, anchored_on = anchor, "update"
+    if rw_cyc == 0 and daily_dates:                 # 업데이트일 기준 윈도우가 비면 최신 데이터일로 폴백
+        win_to = date.fromisoformat(max(daily_dates))
+        win_from, rw_cyc, rw_err = _window(win_to)
+        anchored_on = "lastData"
+    recent_window = {
+        "weeks": recent_weeks,
+        "fromDate": win_from.isoformat(), "toDate": win_to.isoformat(),
+        "cycles": rw_cyc, "errors": rw_err,
+        "rate": round(rw_err / rw_cyc * 100, 1) if rw_cyc else 0,
+        "mtbi": round(rw_cyc / rw_err) if rw_err else rw_cyc,
+        "lowSample": bool(recent_min and rw_cyc < recent_min),
+        "anchoredOn": anchored_on,
+    }
 
     # 신뢰수준 (무고장 시험): C = 1 − e^(−n/MTBF목표)
     def required(c):
@@ -750,10 +821,13 @@ def _compute(daily, errors, config, codes, actions) -> dict:
             "successRate": round(success / cum_total * 100, 1) if cum_total else 0,
             "success": success, "errorsTotal": cum_err,
             "mtbf": {"current": mtbf_cur, "target": mtbf_t},
+            "errRateCur": err_rate_cur, "errRateTarget": err_rate_t,
             "streak": {"current": streak_cur, "max": streak_max},
             "failure": {"count": failure_count, "lastCycle": last_fail_cycle,
                         "freeCycles": failure_free, "keyword": fail_kw},
             "weekly": weekly_list,
+            "errRate": errrate_list,
+            "recentWindow": recent_window,
             "throughput": {"total": cum_total,
                            "daily": round(cum_total / len(daily), 1) if daily else 0},
             "confidence": {"level": conf_lv, "current": round(conf_cur, 3),
@@ -782,10 +856,11 @@ def main():
 
     config = _load_config()
     codes, actions = _load_mgmt()
-    computed = _compute(daily, errors, config, codes, actions)
+    now = datetime.now(timezone.utc)
+    computed = _compute(daily, errors, config, codes, actions, now=now)
 
     out = {
-        "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generatedAt": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source":      src.name,
         "config":      config,
         "codes":       codes,

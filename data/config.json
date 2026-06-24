@@ -13,39 +13,103 @@
     "targetCycle": 360,
     "errorLimit": 3,
     "mtbfTargetCycle": 100,
-    "confidenceLevel": 0.80,
+    "confidenceLevel": 0.8,
     "recurrenceLimit": 0,
     "verifyCycle": 200,
-    "criticalOpenLimit": 0
+    "criticalOpenLimit": 0,
+    "errRateTargetPct": 5
   },
   "lifecycle": [
-    { "stage": "POC", "status": "done", "note": "개념 검증 완료" },
-    { "stage": "Pilot", "status": "done", "note": "파일럿 라인 검증" },
-    { "stage": "양산성 평가", "status": "done", "note": "양산성 확인" },
-    { "stage": "양산평가 1차", "status": "current", "note": "360 Cycle 평가 진행" },
-    { "stage": "양산평가 2차", "status": "todo", "note": "" },
-    { "stage": "양산대응", "status": "todo", "note": "" }
+    {
+      "stage": "POC",
+      "status": "done",
+      "note": "개념 검증 완료"
+    },
+    {
+      "stage": "Pilot",
+      "status": "done",
+      "note": "파일럿 라인 검증"
+    },
+    {
+      "stage": "양산성 평가",
+      "status": "done",
+      "note": "양산성 확인"
+    },
+    {
+      "stage": "양산평가 1차",
+      "status": "current",
+      "note": "360 Cycle 평가 진행"
+    },
+    {
+      "stage": "양산평가 2차",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "stage": "양산대응",
+      "status": "todo",
+      "note": ""
+    }
   ],
   "line": {
     "layoutImage": "data/assets/line_layout.png",
     "stations": [
-      { "name": "설비 1", "role": "픽업", "status": "pass" },
-      { "name": "설비 2", "role": "이송", "status": "pass" },
-      { "name": "설비 3", "role": "적재", "status": "current" },
-      { "name": "설비 4", "role": "검사·반송", "status": "wait" }
+      {
+        "name": "설비 1",
+        "role": "픽업",
+        "status": "pass"
+      },
+      {
+        "name": "설비 2",
+        "role": "이송",
+        "status": "pass"
+      },
+      {
+        "name": "설비 3",
+        "role": "적재",
+        "status": "current"
+      },
+      {
+        "name": "설비 4",
+        "role": "검사·반송",
+        "status": "wait"
+      }
     ]
   },
   "swModules": [
-    { "name": "비전 인식", "pct": 100 },
-    { "name": "통신 / HMI", "pct": 100 },
-    { "name": "경로 계획", "pct": 100 },
-    { "name": "안전 인터록", "pct": 100 },
-    { "name": "그리퍼 제어", "pct": 90 },
-    { "name": "적재 로직", "pct": 70 },
-    { "name": "데이터 로깅", "pct": 60 },
-    { "name": "리포트 연동", "pct": 30 }
+    {
+      "name": "비전 인식",
+      "pct": 100
+    },
+    {
+      "name": "통신 / HMI",
+      "pct": 100
+    },
+    {
+      "name": "경로 계획",
+      "pct": 100
+    },
+    {
+      "name": "안전 인터록",
+      "pct": 100
+    },
+    {
+      "name": "그리퍼 제어",
+      "pct": 90
+    },
+    {
+      "name": "적재 로직",
+      "pct": 70
+    },
+    {
+      "name": "데이터 로깅",
+      "pct": 60
+    },
+    {
+      "name": "리포트 연동",
+      "pct": 30
+    }
   ],
-
   "_ui_readme": "아래 ui 블록의 모든 글자는 화면에 그대로 표시됩니다. 여기만 고치면 새로고침 시 바로 반영됩니다(재빌드 불필요). {중괄호}는 자동으로 채워지는 숫자/값이니 그대로 두세요. <b>..</b> 같은 태그는 강조 표시이므로 유지하면 됩니다. steps.targetCurve = 주차별 추이의 목표 곡선 모양: linear(선형)·quad(2차)·cubic(3차) 중 하나.",
   "ui": {
     "app": {
@@ -123,13 +187,22 @@
       "goalPrimaryGoal": "연속 {target} Cycle · 에러 {limit}회까지 허용(초과 시 리셋)",
       "progressRate": "진행률 {pct}%",
       "streakLabel": "목표까지 남은 Cycle",
+      "pCum": "누적 진행",
       "goalPrimaryNote": "누적 에러 {errors}건 · 남은 {remain} Cycle 통과가 관건 (반드시 달성)",
       "goalSecondaryPass": "충족",
       "goalSecondaryCond": "조건부",
       "goalSecondaryTitle": "🛡 신뢰성 입증 목표 · 심화 (프로젝트 최종)",
-      "goalSecondaryGoal": "MTBF≥{mtbf} @신뢰수준 {conf}% · FRACAS 6단계",
+      "goalSecondaryGoal": "MTBF≥{mtbf} @신뢰수준 {conf}% · 기간 에러율 <{err}% · FRACAS 6단계",
       "goalSecondaryStep": "입증 단계 충족",
       "goalSecondaryConf": "입증 신뢰수준 (목표 {conf}%)",
+      "donutStep": "입증단계",
+      "donutStepSub": "6단계 충족",
+      "donutConf": "신뢰수준",
+      "donutConfSub": "목표 {t}%",
+      "donutMtbf": "MTBF",
+      "donutMtbfSub": "목표 {t}Cy",
+      "donutErrRate": "기간 에러율",
+      "donutErrRateSub": "최근4주 목표<{t}%",
       "goalSecondaryNote": "합격(좌)을 넘어 \"신뢰성 있게 쓸 수 있나\"를 정량 입증 — 아래 6단계가 근거",
       "capPrimary": "<b>🎯 양산평가 합격</b> = 계약 통과, <b>반드시 달성</b>",
       "capSecondary": "<b>🛡 신뢰성 입증</b> = 더 높은 신뢰도 확보, <b>권장</b>",
@@ -156,12 +229,9 @@
       "kpiProgressSub": "{cum}/{target}",
       "kpiSuccess": "성공률",
       "kpiSuccessSub": "성공 {success}·실패 {errors}",
-      "kpiMtbf": "MTBF(현재)",
-      "kpiMtbfSub": "목표 {target}",
-      "kpiRecur": "재발 오류율",
-      "kpiRecurSub": "목표 <5%",
       "kpiThroughput": "일평균 처리량",
-      "kpiThroughputSub": "총 누적 {total}"
+      "kpiThroughputSub": "총 누적 {total}",
+      "heroThroughput": "일평균 처리량"
     },
     "steps": {
       "tag": "신뢰성 입증 흐름",
@@ -179,11 +249,29 @@
       "s2Title": "결함관리 (FRACAS) · 고장 프로파일",
       "s2Q": "모든 결함이 폐쇄루프로 닫혔는가 / 무엇이 얼마나 나쁜가?",
       "s2Chip": "폐쇄루프 추적",
-      "flow": ["고장 보고", "근본원인 분석", "시정조치", "무발생 검증", "종결"],
-      "fracasH": ["코드", "유형", "조치내용", "무발생 검증({verify}Cy)", "상태"],
+      "flow": [
+        "고장 보고",
+        "근본원인 분석",
+        "시정조치",
+        "무발생 검증",
+        "종결"
+      ],
+      "fracasH": [
+        "코드",
+        "유형",
+        "조치내용",
+        "무발생 검증({verify}Cy)",
+        "상태"
+      ],
       "top5Title": "빈발 고장 Top 5 (코드 기준)",
       "top5Sub": "자주 나는 고장 순 · 등급·재발",
-      "top5H": ["코드", "유형", "건수", "빈도", "등급"],
+      "top5H": [
+        "코드",
+        "유형",
+        "건수",
+        "빈도",
+        "등급"
+      ],
       "matrixTitle": "위험 매트릭스 (S×O)",
       "matrixSub": "RPN 없이 우선순위 자동",
       "recurTitle": "재발 현황",
@@ -195,18 +283,41 @@
       "s3Q": "고치며 운영할수록 실제로 더 안정돼 왔는가?",
       "s3Chip": "추세",
       "targetCurve": "linear",
-      "targetCurveNames": { "linear": "선형", "quad": "2차 곡선", "cubic": "3차 곡선" },
+      "targetCurveNames": {
+        "linear": "선형",
+        "quad": "2차 곡선",
+        "cubic": "3차 곡선"
+      },
       "yAxisMax": 400,
       "autoScaleLabel": "Auto scale",
       "growthTitle": "주차별 연속 사이클 추이",
-      "growthSub": "주차연속성공 + 누적연속 + 목표 0→{target} 곡선 · 리셋 ✕ · x축 평가기간 전체 주차",
+      "growthSub": "누적연속 + 목표 0→{target} 곡선 · 리셋 ✕ · x축 평가기간 전체 주차",
       "growthTargetLabel": "목표 {v} ({curve})",
-      "growthLegend": ["주차 연속 성공", "누적 연속", "리셋", "목표 곡선"],
+      "growthLegend": [
+        "누적 연속",
+        "리셋",
+        "목표 곡선"
+      ],
       "mtbfTitle": "MTBF 추이 (목표 {target})",
       "mtbfSub": "MEAN CYCLES BETWEEN FAILURES",
       "stabTitle": "시스템 안정성 추이",
       "stabSub": "에러율 ↓ + MTBF ↑ = 안정화",
-      "stabLegend": ["이동 에러율 (좌·%)", "누적 MTBF (우·Cy)"],
+      "stabLegend": [
+        "이동 에러율 (좌·%)",
+        "누적 MTBF (우·Cy)"
+      ],
+      "errRateBin": "week",
+      "errRateTitle": "기간별 에러율 안정화",
+      "errRateSub": "기간별 에러 발생률이 낮아져 안정화되는가 · 막대=해당 기간 실측 · 선=누적 평균 추세 · x축=평가 전체 주차(최근 4주 배지와 별개)",
+      "errRateLegend": [
+        "기간 에러율",
+        "누적 평균 (안정화 추세)"
+      ],
+      "recentWeeks": 4,
+      "recentMinCycles": 20,
+      "errRateRecentLabel": "최근 {weeks}주 에러율",
+      "errRateRecentDetail": "에러 {errors} / {cycles} Cycle · {from}~{to}",
+      "errRateRecentLow": "표본부족",
       "s4Title": "신뢰수준 입증",
       "s4Q": "정해둔 신뢰수준으로 목표 MTBF를 \"통계적으로\" 입증했는가?",
       "s4PanelTitle": "신뢰성 입증 (무고장 시험 기반)",
@@ -218,7 +329,11 @@
       "s4Need": " · 목표까지 <b>+{need} Cycle</b> 무고장 필요",
       "s4Met": " · 목표 충족",
       "s4Formula": "필요 무고장 Cycle <code>T ≈ 목표MTBF × (−ln(1−신뢰수준))</code>",
-      "s4TableH": ["신뢰수준", "필요 무고장", "현재({cur})"],
+      "s4TableH": [
+        "신뢰수준",
+        "필요 무고장",
+        "현재({cur})"
+      ],
       "s4Now": "{pct}% (현재)",
       "s4GoalMark": " (목표)",
       "s4Achieved": "달성",
@@ -236,7 +351,15 @@
       "s5ActTitle": "조치 관리 (Action Items)",
       "s5ActBadge": "전체 표",
       "s5ActSub": "유지 데이터: SEC_REPORT.xlsx 「조치검증」",
-      "s5ActH": ["ID", "조치 항목", "대상", "담당", "목표일", "상태", "진행률"],
+      "s5ActH": [
+        "ID",
+        "조치 항목",
+        "대상",
+        "담당",
+        "목표일",
+        "상태",
+        "진행률"
+      ],
       "s6Title": "기록 (근거)",
       "s6Q": "판정의 원천 기록이 보존·추적 가능한가?",
       "s6Chip": "git 추적",
@@ -244,11 +367,22 @@
       "s6Source": "원천: {source}",
       "dailyTitle": "일자별 평가 기록",
       "dailySub": "DAILY LOG · 업체 일일평가",
-      "dailyH": ["평가일", "평가", "에러", "연속", "비고"],
+      "dailyH": [
+        "평가일",
+        "평가",
+        "에러",
+        "연속",
+        "비고"
+      ],
       "errlogTitle": "에러 상세 로그",
       "errlogBadge": "사진 모달",
       "errlogSub": "INCIDENT DETAILS · 원인·조치·사진 (＋상세)",
-      "errlogH": ["코드", "유형 / 원인", "담당", "상세"],
+      "errlogH": [
+        "코드",
+        "유형 / 원인",
+        "담당",
+        "상세"
+      ],
       "errlogBtn": "＋상세"
     },
     "info": {

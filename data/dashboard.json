@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-24T05:03:33Z",
-  "source": "260601_SEC양산평가.xlsx",
+  "generatedAt": "2026-06-24T07:19:51Z",
+  "source": "양산평가_샘플.xlsx",
   "config": {
     "project": {
       "name": "S4 증축동",
@@ -19,7 +19,8 @@
       "confidenceLevel": 0.8,
       "recurrenceLimit": 0,
       "verifyCycle": 200,
-      "criticalOpenLimit": 0
+      "criticalOpenLimit": 0,
+      "errRateTargetPct": 5
     },
     "lifecycle": [
       {
@@ -193,9 +194,17 @@
         "goalSecondaryPass": "충족",
         "goalSecondaryCond": "조건부",
         "goalSecondaryTitle": "🛡 신뢰성 입증 목표 · 심화 (프로젝트 최종)",
-        "goalSecondaryGoal": "MTBF≥{mtbf} @신뢰수준 {conf}% · FRACAS 6단계",
+        "goalSecondaryGoal": "MTBF≥{mtbf} @신뢰수준 {conf}% · 기간 에러율 <{err}% · FRACAS 6단계",
         "goalSecondaryStep": "입증 단계 충족",
         "goalSecondaryConf": "입증 신뢰수준 (목표 {conf}%)",
+        "donutStep": "입증단계",
+        "donutStepSub": "6단계 충족",
+        "donutConf": "신뢰수준",
+        "donutConfSub": "목표 {t}%",
+        "donutMtbf": "MTBF",
+        "donutMtbfSub": "목표 {t}Cy",
+        "donutErrRate": "기간 에러율",
+        "donutErrRateSub": "최근4주 목표<{t}%",
         "goalSecondaryNote": "합격(좌)을 넘어 \"신뢰성 있게 쓸 수 있나\"를 정량 입증 — 아래 6단계가 근거",
         "capPrimary": "<b>🎯 양산평가 합격</b> = 계약 통과, <b>반드시 달성</b>",
         "capSecondary": "<b>🛡 신뢰성 입증</b> = 더 높은 신뢰도 확보, <b>권장</b>",
@@ -222,12 +231,9 @@
         "kpiProgressSub": "{cum}/{target}",
         "kpiSuccess": "성공률",
         "kpiSuccessSub": "성공 {success}·실패 {errors}",
-        "kpiMtbf": "MTBF(현재)",
-        "kpiMtbfSub": "목표 {target}",
-        "kpiRecur": "재발 오류율",
-        "kpiRecurSub": "목표 <5%",
         "kpiThroughput": "일평균 처리량",
-        "kpiThroughputSub": "총 누적 {total}"
+        "kpiThroughputSub": "총 누적 {total}",
+        "heroThroughput": "일평균 처리량"
       },
       "steps": {
         "tag": "신뢰성 입증 흐름",
@@ -287,10 +293,9 @@
         "yAxisMax": 400,
         "autoScaleLabel": "Auto scale",
         "growthTitle": "주차별 연속 사이클 추이",
-        "growthSub": "주차연속성공 + 누적연속 + 목표 0→{target} 곡선 · 리셋 ✕ · x축 평가기간 전체 주차",
+        "growthSub": "누적연속 + 목표 0→{target} 곡선 · 리셋 ✕ · x축 평가기간 전체 주차",
         "growthTargetLabel": "목표 {v} ({curve})",
         "growthLegend": [
-          "주차 연속 성공",
           "누적 연속",
           "리셋",
           "목표 곡선"
@@ -303,6 +308,18 @@
           "이동 에러율 (좌·%)",
           "누적 MTBF (우·Cy)"
         ],
+        "errRateBin": "week",
+        "errRateTitle": "기간별 에러율 안정화",
+        "errRateSub": "기간별 에러 발생률이 낮아져 안정화되는가 · 막대=해당 기간 실측 · 선=누적 평균 추세 · x축=평가 전체 주차(최근 4주 배지와 별개)",
+        "errRateLegend": [
+          "기간 에러율",
+          "누적 평균 (안정화 추세)"
+        ],
+        "recentWeeks": 4,
+        "recentMinCycles": 20,
+        "errRateRecentLabel": "최근 {weeks}주 에러율",
+        "errRateRecentDetail": "에러 {errors} / {cycles} Cycle · {from}~{to}",
+        "errRateRecentLow": "표본부족",
         "s4Title": "신뢰수준 입증",
         "s4Q": "정해둔 신뢰수준으로 목표 MTBF를 \"통계적으로\" 입증했는가?",
         "s4PanelTitle": "신뢰성 입증 (무고장 시험 기반)",
@@ -436,291 +453,138 @@
   ],
   "daily": [
     {
-      "date": "2026-06-01",
+      "date": "2026-06-08",
       "personnel": "홍길동, 김철수",
       "activity": "JOB 생성 · 픽업–적재 사이클 셋업",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-02",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 7,
+      "total": 4,
       "errors": 1,
-      "streak": 6,
-      "notes": "ERR-001 발생 → 연속 리셋"
-    },
-    {
-      "date": "2026-06-02",
-      "personnel": "홍길동, 김철수",
-      "activity": "사이클 반복 안정성 검증",
-      "total": 3,
-      "errors": 0,
       "streak": 3,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-03",
-      "personnel": "홍길동, 김철수",
-      "activity": "연속 적재 정밀도 점검",
-      "total": 12,
-      "errors": 0,
-      "streak": 12,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-04",
-      "personnel": "홍길동, 김철수",
-      "activity": "비전 파라미터 튜닝",
-      "total": 12,
-      "errors": 0,
-      "streak": 12,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-05",
-      "personnel": "홍길동, 김철수",
-      "activity": "노출 보정 후 재검증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-08",
-      "personnel": "홍길동, 김철수",
-      "activity": "그리퍼 압력 캘리브레이션",
-      "total": 8,
-      "errors": 1,
-      "streak": 7,
-      "notes": "ERR-002 발생 → 연속 리셋"
-    },
-    {
-      "date": "2026-06-08",
-      "personnel": "홍길동, 김철수",
-      "activity": "그리퍼 압력 캘리브레이션",
-      "total": 6,
-      "errors": 0,
-      "streak": 6,
       "notes": ""
     },
     {
       "date": "2026-06-09",
       "personnel": "홍길동, 김철수",
-      "activity": "표면 검사 단계 검증",
-      "total": 15,
-      "errors": 0,
-      "streak": 15,
+      "activity": "사이클 반복 안정성 검증",
+      "total": 2,
+      "errors": 1,
+      "streak": 1,
+      "notes": "ERR-001 발생 → 연속 리셋"
+    },
+    {
+      "date": "2026-06-10",
+      "personnel": "홍길동, 김철수",
+      "activity": "연속 적재 정밀도 점검",
+      "total": 1,
+      "errors": 1,
+      "streak": 0,
       "notes": ""
     },
     {
       "date": "2026-06-10",
       "personnel": "홍길동, 김철수",
-      "activity": "경로 플래너 검증",
-      "total": 7,
-      "errors": 1,
-      "streak": 6,
-      "notes": "ERR-003 발생 → 연속 리셋"
-    },
-    {
-      "date": "2026-06-10",
-      "personnel": "홍길동, 김철수",
-      "activity": "경로 플래너 검증",
-      "total": 8,
-      "errors": 0,
-      "streak": 8,
+      "activity": "비전 파라미터 튜닝",
+      "total": 3,
+      "errors": 2,
+      "streak": 1,
       "notes": ""
     },
     {
       "date": "2026-06-11",
       "personnel": "홍길동, 김철수",
-      "activity": "역광 조건 재현 시험",
-      "total": 16,
-      "errors": 0,
-      "streak": 16,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-12",
-      "personnel": "홍길동, 김철수",
-      "activity": "차광 설치 후 재검증",
-      "total": 4,
+      "activity": "노출 보정 후 재검증",
+      "total": 2,
       "errors": 1,
-      "streak": 3,
-      "notes": "ERR-001 발생 → 연속 리셋"
-    },
-    {
-      "date": "2026-06-12",
-      "personnel": "홍길동, 김철수",
-      "activity": "차광 설치 후 재검증",
-      "total": 12,
-      "errors": 0,
-      "streak": 12,
+      "streak": 1,
       "notes": ""
     },
     {
-      "date": "2026-06-15",
+      "date": "2026-06-11",
       "personnel": "홍길동, 김철수",
-      "activity": "연속 운전 안정성",
-      "total": 16,
-      "errors": 0,
-      "streak": 16,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-16",
-      "personnel": "홍길동, 김철수",
-      "activity": "후속 로트 그립 검증",
+      "activity": "그리퍼 압력 캘리브레이션",
       "total": 2,
       "errors": 1,
       "streak": 1,
       "notes": "ERR-002 발생 → 연속 리셋"
     },
     {
+      "date": "2026-06-15",
+      "personnel": "홍길동, 김철수",
+      "activity": "표면 검사 단계 검증",
+      "total": 2,
+      "errors": 1,
+      "streak": 1,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-15",
+      "personnel": "홍길동, 김철수",
+      "activity": "경로 플래너 검증",
+      "total": 10,
+      "errors": 0,
+      "streak": 10,
+      "notes": "ERR-003 발생 → 연속 리셋"
+    },
+    {
       "date": "2026-06-16",
       "personnel": "홍길동, 김철수",
-      "activity": "후속 로트 그립 검증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
+      "activity": "JOB 생성 · 픽업–적재 사이클 셋업",
+      "total": 1,
+      "errors": 1,
+      "streak": 0,
       "notes": ""
     },
     {
-      "date": "2026-06-17",
+      "date": "2026-06-16",
       "personnel": "홍길동, 김철수",
-      "activity": "센서 노이즈 점검",
+      "activity": "사이클 반복 안정성 검증",
+      "total": 4,
+      "errors": 1,
+      "streak": 3,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-16",
+      "personnel": "홍길동, 김철수",
+      "activity": "연속 적재 정밀도 점검",
       "total": 11,
-      "errors": 1,
-      "streak": 10,
-      "notes": "ERR-005 발생 → 연속 리셋"
+      "errors": 0,
+      "streak": 11,
+      "notes": ""
     },
     {
       "date": "2026-06-17",
       "personnel": "홍길동, 김철수",
-      "activity": "센서 노이즈 점검",
-      "total": 5,
+      "activity": "비전 파라미터 튜닝",
+      "total": 7,
       "errors": 0,
-      "streak": 5,
+      "streak": 7,
       "notes": ""
     },
     {
       "date": "2026-06-18",
       "personnel": "홍길동, 김철수",
-      "activity": "그리퍼 패드 점검",
-      "total": 10,
+      "activity": "노출 보정 후 재검증",
+      "total": 2,
       "errors": 1,
-      "streak": 9,
-      "notes": "ERR-002 발생 → 연속 리셋"
+      "streak": 1,
+      "notes": ""
     },
     {
       "date": "2026-06-18",
       "personnel": "홍길동, 김철수",
-      "activity": "그리퍼 패드 점검",
-      "total": 6,
-      "errors": 0,
-      "streak": 6,
+      "activity": "그리퍼 압력 캘리브레이션",
+      "total": 3,
+      "errors": 1,
+      "streak": 2,
       "notes": ""
     },
     {
-      "date": "2026-06-19",
+      "date": "2026-06-18",
       "personnel": "홍길동, 김철수",
-      "activity": "안정화 연속 운전",
-      "total": 16,
+      "activity": "표면 검사 단계 검증",
+      "total": 1,
       "errors": 0,
-      "streak": 16,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-22",
-      "personnel": "홍길동, 김철수",
-      "activity": "무고장 연속 운전",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-23",
-      "personnel": "홍길동, 김철수",
-      "activity": "무고장 연속 운전",
-      "total": 15,
-      "errors": 0,
-      "streak": 15,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-24",
-      "personnel": "홍길동, 김철수",
-      "activity": "무고장 연속 운전",
-      "total": 15,
-      "errors": 0,
-      "streak": 15,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-25",
-      "personnel": "홍길동, 김철수",
-      "activity": "무고장 연속 운전",
-      "total": 16,
-      "errors": 0,
-      "streak": 16,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-26",
-      "personnel": "홍길동, 김철수",
-      "activity": "무고장 연속 운전",
-      "total": 16,
-      "errors": 0,
-      "streak": 16,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-29",
-      "personnel": "홍길동, 김철수",
-      "activity": "장기 신뢰성 입증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-06-30",
-      "personnel": "홍길동, 김철수",
-      "activity": "장기 신뢰성 입증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-07-01",
-      "personnel": "홍길동, 김철수",
-      "activity": "장기 신뢰성 입증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-07-02",
-      "personnel": "홍길동, 김철수",
-      "activity": "장기 신뢰성 입증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
-      "notes": ""
-    },
-    {
-      "date": "2026-07-03",
-      "personnel": "홍길동, 김철수",
-      "activity": "장기 신뢰성 입증",
-      "total": 14,
-      "errors": 0,
-      "streak": 14,
+      "streak": 1,
       "notes": ""
     }
   ],
@@ -845,91 +709,97 @@
   ],
   "metrics": {
     "progress": {
-      "cum": 238,
+      "cum": 1,
       "target": 360,
-      "pct": 66.1
+      "pct": 0.3
     },
     "errorBudget": {
-      "used": 3,
+      "used": 0,
       "limit": 3,
-      "resets": 1,
-      "lifetimeErrors": 7,
-      "dailyAvg": 0.22,
-      "weeklyAvg": 1.4
+      "resets": 3,
+      "lifetimeErrors": 12,
+      "dailyAvg": 0.8,
+      "weeklyAvg": 6.0
     },
-    "successRate": 98.0,
-    "success": 351,
-    "errorsTotal": 7,
+    "successRate": 78.2,
+    "success": 43,
+    "errorsTotal": 12,
     "mtbf": {
-      "current": 358,
+      "current": 55,
       "target": 100
     },
+    "errRateCur": 21.8,
+    "errRateTarget": 5,
     "streak": {
-      "current": 168,
-      "max": 168
+      "current": 1,
+      "max": 19
     },
     "failure": {
       "count": 0,
       "lastCycle": 0,
-      "freeCycles": 358,
+      "freeCycles": 55,
       "keyword": "고장"
     },
     "weekly": [
       {
         "week": "W1",
-        "weekStart": "2026-06-01",
-        "cumStreak": 41,
-        "weekSuccess": 55,
-        "errors": 1,
-        "errRate": 1.8,
-        "mtbf": 56
+        "weekStart": "2026-06-08",
+        "cumStreak": 0,
+        "weekSuccess": 7,
+        "errors": 7,
+        "errRate": 50.0,
+        "mtbf": 14
       },
       {
         "week": "W2",
-        "weekStart": "2026-06-08",
-        "cumStreak": 12,
-        "weekSuccess": 73,
-        "errors": 3,
-        "errRate": 3.0,
-        "mtbf": 132
-      },
-      {
-        "week": "W3",
         "weekStart": "2026-06-15",
-        "cumStreak": 22,
-        "weekSuccess": 77,
-        "errors": 3,
-        "errRate": 3.3,
-        "mtbf": 212
-      },
-      {
-        "week": "W4",
-        "weekStart": "2026-06-22",
-        "cumStreak": 98,
-        "weekSuccess": 76,
-        "errors": 0,
-        "errRate": 2.4,
-        "mtbf": 288
-      },
-      {
-        "week": "W5",
-        "weekStart": "2026-06-29",
-        "cumStreak": 168,
-        "weekSuccess": 70,
-        "errors": 0,
-        "errRate": 2.0,
-        "mtbf": 358
+        "cumStreak": 1,
+        "weekSuccess": 36,
+        "errors": 5,
+        "errRate": 21.8,
+        "mtbf": 55
       }
     ],
+    "errRate": [
+      {
+        "period": "1주차",
+        "range": "6/8~6/11",
+        "cycles": 14,
+        "errors": 7,
+        "rate": 50.0,
+        "cumRate": 50.0,
+        "mtbi": 2
+      },
+      {
+        "period": "2주차",
+        "range": "6/15~6/18",
+        "cycles": 41,
+        "errors": 5,
+        "rate": 12.2,
+        "cumRate": 21.8,
+        "mtbi": 8
+      }
+    ],
+    "recentWindow": {
+      "weeks": 4,
+      "fromDate": "2026-05-28",
+      "toDate": "2026-06-24",
+      "cycles": 55,
+      "errors": 12,
+      "rate": 21.8,
+      "mtbi": 5,
+      "lowSample": false,
+      "anchoredOn": "update"
+    },
     "throughput": {
-      "total": 358,
-      "daily": 11.2
+      "total": 55,
+      "daily": 3.7
     },
     "confidence": {
       "level": 0.8,
-      "current": 0.972,
-      "currentPct": 97,
-      "currentCycles": 358,
+      "current": 0.423,
+      "currentPct": 42,
+      "currentCycles": 55,
       "requiredForLevel": 161,
       "table": [
         {
@@ -1054,10 +924,10 @@
       "severity": "Critical",
       "type": "Vision Timeout",
       "verifyStartCycle": 125,
-      "noFailCycles": 233,
+      "noFailCycles": 0,
       "verifyTarget": 200,
-      "verifyProgress": 100,
-      "verifyResult": "검증완료"
+      "verifyProgress": 0,
+      "verifyResult": "조치중"
     },
     {
       "id": "A-002",
@@ -1071,10 +941,10 @@
       "severity": "Major",
       "type": "Path Error",
       "verifyStartCycle": 100,
-      "noFailCycles": 258,
+      "noFailCycles": 0,
       "verifyTarget": 200,
-      "verifyProgress": 100,
-      "verifyResult": "검증완료"
+      "verifyProgress": 0,
+      "verifyResult": "조치중"
     },
     {
       "id": "A-003",
@@ -1114,18 +984,18 @@
     "criteria": [
       {
         "key": "완주",
-        "value": "238/360",
+        "value": "1/360",
         "status": "prog"
       },
       {
         "key": "MTBF≥100 @80%",
-        "value": "97%",
-        "status": "pass"
+        "value": "42%",
+        "status": "fail"
       },
       {
         "key": "미해결 Critical=0",
-        "value": "0건",
-        "status": "pass"
+        "value": "1건",
+        "status": "fail"
       },
       {
         "key": "재발≤0",
@@ -1134,17 +1004,17 @@
       },
       {
         "key": "전 결함 검증종결",
-        "value": "2/3",
+        "value": "0/3",
         "status": "prog"
       }
     ],
-    "passed": 2,
+    "passed": 0,
     "total": 5
   },
   "opReliability": {
     "grade": "주의",
     "recur": 3,
-    "openCritical": 0,
-    "verifyClosedRate": 67
+    "openCritical": 1,
+    "verifyClosedRate": 0
   }
 }

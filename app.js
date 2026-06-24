@@ -30,11 +30,24 @@ function spark(series, color) {
   }).join(' ');
   return `<svg class="spark" viewBox="0 0 70 36"><polyline fill="none" stroke="${color}" stroke-width="2" points="${pts}"/></svg>`;
 }
-function heroDonut(pct) {
+function heroDonut(pct, size = 128) {
   pct = Math.max(0, Math.min(100, pct));
-  return `<svg width="128" height="128" viewBox="0 0 42 42">
+  return `<svg width="${size}" height="${size}" viewBox="0 0 42 42">
     <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="5"/>
     <circle cx="21" cy="21" r="15.9" fill="none" stroke="#5fb0ec" stroke-width="5" stroke-dasharray="${pct} ${100 - pct}" stroke-dashoffset="25" stroke-linecap="round"/></svg>`;
+}
+// 달성률 도넛(밝은 배경용): fill=목표 대비 달성률(%), 중앙=실제값, 아래=라벨/부가
+function miniDonut(pct, color, center, label, sub, size = 72) {
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  return `<div style="text-align:center;flex:1;min-width:62px">
+    <svg width="${size}" height="${size}" viewBox="0 0 42 42" style="display:block;margin:0 auto">
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--line-soft)" stroke-width="4.5"/>
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="${color}" stroke-width="4.5" stroke-dasharray="${pct} ${100 - pct}" stroke-dashoffset="25" stroke-linecap="round"/>
+      <text x="21" y="21" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="var(--navy-deep)">${esc(center)}</text>
+    </svg>
+    <div style="font-size:11.5px;font-weight:700;color:var(--navy-deep);margin-top:5px">${esc(label)}</div>
+    <div style="font-size:10px;color:var(--muted)">${esc(sub)}</div>
+  </div>`;
 }
 function sevDonut(sd) {
   const tot = sd.total || 1; let cum = 0, c = '';
@@ -99,7 +112,7 @@ function weeklyChart(weekly, target) {
     return { ...w, slot: idx < 0 ? i : idx };
   });
   // y축 최대: 고정(기본 400) ↔ auto(데이터에 맞춤). y는 클램프하지 않고 목표곡선만 clip → 왜곡 방지
-  const dataMax = Math.max(...weekly.map(w => Math.max(w.cumStreak, w.weekSuccess)), 1);
+  const dataMax = Math.max(...weekly.map(w => w.cumStreak), 1);
   const yMax = weeklyAuto ? niceCeil(dataMax) : (Number(T('steps.yAxisMax', 400)) || 400);
   const y = v => bot - (v / yMax) * (bot - top);
   const slotW = (right - left) / nSlots;
@@ -125,14 +138,13 @@ function weeklyChart(weekly, target) {
     xaxis += `<text x="${cx(i)}" y="${bot + 22}" font-size="13" font-weight="600" fill="#3D4F63" text-anchor="middle">${i + 1}주차</text>`;
     xaxis += `<text x="${cx(i)}" y="${bot + 39}" font-size="9.5" fill="#8A99AC" text-anchor="middle">${esc(weekRange(s, proj.endDate))}</text>`;
   });
-  // 막대(주차성공=파랑 먼저, 누적=빨강 다음) + 리셋 ✕
+  // 막대(누적연속=빨강, 슬롯 중앙 정렬) + 리셋 ✕
   let bars = '';
   placed.forEach(w => {
     const x = cx(w.slot), bw = Math.min(17, slotW * 0.34);
-    bars += `<rect x="${x - bw - 1}" y="${y(w.weekSuccess)}" width="${bw}" height="${bot - y(w.weekSuccess)}" fill="#1E4A7A"/>`;
-    bars += `<rect x="${x + 1}" y="${y(w.cumStreak)}" width="${bw}" height="${bot - y(w.cumStreak)}" fill="#C0392B"/>`;
+    bars += `<rect x="${x - bw / 2}" y="${y(w.cumStreak)}" width="${bw}" height="${bot - y(w.cumStreak)}" fill="#C0392B"/>`;
     if (w.errors > 0) {
-      const yy = y(Math.max(w.cumStreak, w.weekSuccess)) - 10, r = 5;
+      const yy = y(w.cumStreak) - 10, r = 5;
       bars += `<path d="M${x - r},${yy - r} L${x + r},${yy + r} M${x - r},${yy + r} L${x + r},${yy - r}" stroke="#8B2E1F" stroke-width="2.4" stroke-linecap="round"/>`;
     }
   });
@@ -200,6 +212,45 @@ function stabChart(weekly) {
     <line x1="${left}" y1="${top}" x2="${left}" y2="${bot}" stroke="#C9DCEC"/><line x1="${right}" y1="${top}" x2="${right}" y2="${bot}" stroke="#C9DCEC"/>
     <polyline fill="none" stroke="#8B2E1F" stroke-width="2.4" points="${pe}"/>${ed}
     <polyline fill="none" stroke="#2E89D6" stroke-width="2.4" points="${pm}"/>${md}${xaxis}</svg>`;
+}
+// 기간별 에러율 안정화: 막대=그 기간 실측 에러율(건/100Cy), 선=누적 평균(안정화 추세)
+function errRateChart(rows) {
+  const top = 18, bot = 176, left = 54, right = 980;
+  const n = rows.length || 1;
+  const yMax = niceCeil(Math.max(...rows.map(r => Math.max(r.rate, r.cumRate)), 1));
+  const y = v => bot - (v / yMax) * (bot - top);
+  const slotW = (right - left) / n;
+  const cx = i => left + slotW * (i + 0.5);
+  const step = niceStep(yMax);
+  let yaxis = '';
+  for (let v = 0; v <= yMax + 0.1; v += step) {
+    yaxis += `<line x1="${left}" y1="${y(v)}" x2="${right}" y2="${y(v)}" stroke="${v === 0 ? '#C9DCEC' : '#EAF0F6'}"/>`;
+    yaxis += `<text x="${left - 8}" y="${y(v) + 4.5}" font-size="13" fill="#5A6B7E" text-anchor="end">${v}%</text>`;
+  }
+  let bars = '', xaxis = '';
+  rows.forEach((r, i) => {
+    const x = cx(i), bw = Math.min(48, slotW * 0.5);
+    bars += `<rect x="${x - bw / 2}" y="${y(r.rate)}" width="${bw}" height="${bot - y(r.rate)}" rx="2" fill="#E08600" opacity="0.85"/>`;
+    bars += `<text x="${x}" y="${y(r.rate) - 7}" font-size="12.5" font-weight="600" fill="#B36A00" text-anchor="middle">${r.rate}%</text>`;
+    xaxis += `<text x="${x}" y="${bot + 24}" font-size="13" font-weight="600" fill="#3D4F63" text-anchor="middle">${esc(r.period)}</text>`;
+    if (r.range) xaxis += `<text x="${x}" y="${bot + 40}" font-size="9.5" fill="#8A99AC" text-anchor="middle">${esc(r.range)}</text>`;
+  });
+  const pts = rows.map((r, i) => `${cx(i)},${y(r.cumRate)}`).join(' ');
+  const dots = rows.map((r, i) => `<circle cx="${cx(i)}" cy="${y(r.cumRate)}" r="4" fill="#8B2E1F"/>`).join('');
+  const line = n > 1 ? `<polyline fill="none" stroke="#8B2E1F" stroke-width="2.5" points="${pts}"/>` : '';
+  return `<svg viewBox="0 0 1000 226" style="width:100%;height:auto;display:block">${yaxis}<line x1="${left}" y1="${top}" x2="${left}" y2="${bot}" stroke="#C9DCEC"/>${bars}${line}${dots}${xaxis}</svg>`;
+}
+// 최근 N주 롤링 에러율 배지: 업데이트일 기준 '현재 상태' 스냅샷 (양산 전환 시 월별 편차 보상)
+function recentErrBadge(rw) {
+  if (!rw) return '';
+  const dim = rw.lowSample;
+  const low = dim ? `<span style="font-size:10.5px;font-weight:700;color:#fff;background:#B0392B;padding:2px 8px;border-radius:9px">${esc(T('steps.errRateRecentLow', '표본부족'))}</span>` : '';
+  return `<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:4px 0 14px;padding:8px 12px;background:#F6F9FC;border:1px solid #E3ECF4;border-radius:8px">
+    <span style="font-size:12.5px;font-weight:700;color:#3D4F63">${esc(TT('steps.errRateRecentLabel', { weeks: rw.weeks }))}</span>
+    <span style="font-size:19px;font-weight:800;color:${dim ? '#8A99AC' : '#E08600'};line-height:1">${rw.rate}<small style="font-size:12px;font-weight:700">%</small></span>
+    <span style="font-size:11.5px;color:var(--muted)">${esc(TT('steps.errRateRecentDetail', { errors: rw.errors, cycles: rw.cycles, from: rw.fromDate, to: rw.toDate }))}</span>
+    ${low}
+  </div>`;
 }
 
 const SEV_BADGE = { Critical: 'b-crit', Major: 'b-major', Minor: 'b-minor' };
@@ -327,13 +378,13 @@ function renderSummary(C, m, acc, op) {
     weeklyAvg: m.weekly.length ? Math.round(m.errorsTotal / m.weekly.length * 100) / 100 : 0,
   };
   const conf = m.confidence;
-  const weekTotals = m.weekly.map(w => w.weekSuccess + w.errors);
-  const cumCycles = []; let r = 0; weekTotals.forEach(t => { r += t; cumCycles.push(r); });
-  // 진행률 추세선은 '현재 시도' 기준(리셋 반영). 리셋 경계 = 누적 − 현재시도진행(=attempt_start).
-  // 끝점이 정확히 progress.cum 이 되도록 누적 cycle에서 경계를 빼고 0으로 클립.
-  const resetBoundary = (cumCycles.length ? cumCycles[cumCycles.length - 1] : 0) - m.progress.cum;
-  const attemptSeries = cumCycles.map(v => Math.max(0, v - resetBoundary));
   const goalCrit = acc.criteria[0], goalConf = acc.criteria[1];
+  // 신뢰성 입증 목표 달성률 도넛 (입증단계·신뢰수준·MTBF·기간에러율). 에러율은 lower-better → 목표/현재.
+  const recentRate = (m.recentWindow || {}).rate || 0, errTgt = m.errRateTarget;
+  const dMtbf = m.mtbf.target ? m.mtbf.current / m.mtbf.target * 100 : 0;
+  const dErr = errTgt != null ? (recentRate > 0 ? Math.min(100, errTgt / recentRate * 100) : 100) : 0;
+  const remain = Math.max(0, m.progress.target - m.progress.cum);
+  const ebudNote = eb.resets ? TT('summary.ebudReset', { n: eb.resets, total: eb.lifetimeErrors }) : TT('summary.ebudNoReset', { total: eb.lifetimeErrors });
   return `
     <div class="sbox-h"><span class="tag">${esc(T('summary.tag'))}</span><h2>${esc(T('summary.title'))}</h2><span class="d">${esc(T('summary.desc'))}</span></div>
     <div class="goals">
@@ -341,24 +392,34 @@ function renderSummary(C, m, acc, op) {
         <span class="gstatus ${goalCrit.status === 'pass' ? 'gs-go' : 'gs-warn'}">${esc(goalCrit.status === 'pass' ? T('summary.goalPrimaryDone') : T('summary.goalPrimaryProg'))}</span>
         <div class="gl">${esc(TT('summary.goalPrimaryTitle', { end: (C.project && C.project.endDate) || '' }))}</div>
         <div class="gt">${esc(TT('summary.goalPrimaryGoal', { target: m.progress.target, limit: errLimit }))}</div>
-        <div class="gmain">
-          <div><div class="gbig">${m.progress.cum}<small>/${m.progress.target}</small></div><div class="gp">${esc(TT('summary.progressRate', { pct: m.progress.pct }))}</div></div>
-          <div class="gsep"></div>
-          <div><div class="gbig">${Math.max(0, m.progress.target - m.progress.cum)}<small>Cy</small></div><div class="gp">${esc(T('summary.streakLabel'))}</div></div>
+        <div class="pmain">
+          <div class="hdonut sm">${heroDonut(m.progress.pct, 104)}<div class="ctr"><b>${m.progress.pct}%</b><span>${esc(T('summary.heroDonutSub'))}</span></div></div>
+          <div class="pstats">
+            <div class="s"><div class="l">${esc(T('summary.pCum'))}</div><div class="v">${m.progress.cum}<small>/${m.progress.target}</small></div></div>
+            <div class="s"><div class="l">${esc(T('summary.streakLabel'))}</div><div class="v">${remain}<small>Cy</small></div></div>
+            <div class="s"><div class="l">${esc(T('summary.heroThroughput'))}</div><div class="v">${m.throughput.daily}<small>회/일</small></div></div>
+          </div>
         </div>
-        <div class="gbar"><i style="width:${Math.min(100, m.progress.pct)}%;background:linear-gradient(90deg,#2E89D6,#5fb0ec)"></i></div>
-        <div class="gnote">${esc(TT('summary.goalPrimaryNote', { errors: m.errorsTotal, remain: Math.max(0, m.progress.target - m.progress.cum) }))}</div>
+        <div class="prow">
+          ${renderPeriod(C)}
+          <div class="pebud">
+            <div class="lbl">${esc(T('summary.ebudLabel'))}</div>
+            <div class="num">${eb.used} <span class="of">${esc(TT('summary.ebudOf', { limit: eb.limit }))}</span></div>
+            <div class="blocks" style="margin:8px 0 7px">${Array.from({ length: eb.limit }, (_, i) => `<i class="${i < eb.used ? 'used' : 'free'}"></i>`).join('')}</div>
+            <div class="mini" style="${eb.resets ? 'color:#ffce86' : 'color:#9fb6d4'}">${esc(ebudNote)}</div>
+          </div>
+        </div>
+        <div class="gnote">${esc(TT('summary.goalPrimaryNote', { errors: m.errorsTotal, remain }))}</div>
       </div>
       <div class="goal secondary">
         <span class="gstatus gs-cond">${acc.passed}/${acc.total} · ${esc(goalConf.status === 'pass' ? T('summary.goalSecondaryPass') : T('summary.goalSecondaryCond'))}</span>
         <div class="gl">${esc(T('summary.goalSecondaryTitle'))}</div>
-        <div class="gt">${esc(TT('summary.goalSecondaryGoal', { mtbf: m.mtbf.target, conf: Math.round(conf.level * 100) }))}</div>
-        <div class="gmain">
-          <div><div class="gbig" style="color:var(--navy-deep)">${acc.passed}<small>/${acc.total}</small></div><div class="gp">${esc(T('summary.goalSecondaryStep'))}</div></div>
-          <div class="gsep"></div>
-          <div><div class="gbig" style="color:var(--crit)">${conf.currentPct}<small>%</small></div><div class="gp">${esc(TT('summary.goalSecondaryConf', { conf: Math.round(conf.level * 100) }))}</div></div>
+        <div class="gt">${esc(TT('summary.goalSecondaryGoal', { mtbf: m.mtbf.target, conf: Math.round(conf.level * 100), err: m.errRateTarget }))}</div>
+        <div style="display:flex;gap:10px;margin:12px 0 10px;justify-content:space-around">
+          ${miniDonut(dMtbf, '#2E89D6', `${m.mtbf.current}`, T('summary.donutMtbf'), TT('summary.donutMtbfSub', { t: m.mtbf.target }), 104)}
+          ${miniDonut(dErr, '#E08600', `${recentRate}%`, T('summary.donutErrRate'), TT('summary.donutErrRateSub', { t: errTgt }), 104)}
         </div>
-        <div class="gbar"><i style="width:${conf.currentPct}%;background:var(--major)"></i></div>
+        <div class="srow">${T('summary.opRel')} <span class="badge ${op.grade === '양호' ? 'b-ok' : op.grade === '주의' ? 'b-major' : 'b-prog'}">${esc(op.grade)}</span> ${TT('summary.opRelDetail', { recur: op.recur, closed: op.verifyClosedRate, open: op.openCritical })}</div>
         <div class="gnote" style="color:var(--muted)">${esc(T('summary.goalSecondaryNote'))}</div>
       </div>
     </div>
@@ -366,45 +427,7 @@ function renderSummary(C, m, acc, op) {
       <span>${T('summary.capPrimary')}</span>
       <span>${T('summary.capSecondary')}</span>
     </div>
-    <div class="op-rel">${T('summary.opRel')} <span class="badge ${op.grade === '양호' ? 'b-ok' : op.grade === '주의' ? 'b-major' : 'b-prog'}">${esc(op.grade)}</span> ${TT('summary.opRelDetail', { recur: op.recur, closed: op.verifyClosedRate, open: op.openCritical })} <span class="mini" style="margin-left:auto">${esc(T('summary.opRelMini'))}</span></div>
-    <div class="hero-grid">
-      <div class="hero">
-        <div class="hero-top">
-          <div class="htxt"><div class="hl">${esc(T('summary.heroLabel'))}</div><div class="ht">${esc(T('summary.heroTitle'))}</div>
-            <div class="hstats">
-              <div class="s"><div class="l">${esc(T('summary.heroCur'))}</div><div class="v">${m.progress.cum}<small>회</small></div></div>
-              <div class="s"><div class="l">${esc(T('summary.heroTarget'))}</div><div class="v">${m.progress.target}<small>회</small></div></div>
-              <div class="s"><div class="l">${esc(T('summary.heroStreak'))}</div><div class="v">${conf.currentCycles}<small>Cy</small></div></div>
-              <div class="s"><div class="l">${esc(T('summary.heroMax'))}</div><div class="v">${m.failure.count}<small>건</small></div></div>
-            </div>
-          </div>
-          <div class="hdonut">${heroDonut(m.progress.pct)}<div class="ctr"><b>${m.progress.pct}%</b><span>${esc(T('summary.heroDonutSub'))}</span></div></div>
-        </div>
-        ${renderPeriod(C)}
-      </div>
-      <div class="panel ebud">
-        <div class="lbl">${esc(T('summary.ebudLabel'))}</div>
-        <div class="num">${eb.used} <span class="of">${esc(TT('summary.ebudOf', { limit: eb.limit }))}</span></div>
-        <div class="blocks">${Array.from({ length: eb.limit }, (_, i) => `<i class="${i < eb.used ? 'used' : 'free'}"></i>`).join('')}</div>
-        <div class="mini" style="margin:2px 0 8px;${eb.resets ? 'color:var(--crit)' : 'color:var(--muted)'}">${esc(eb.resets ? TT('summary.ebudReset', { n: eb.resets, total: eb.lifetimeErrors }) : TT('summary.ebudNoReset', { total: eb.lifetimeErrors }))}</div>
-        <div class="sub" style="margin-bottom:9px">
-          <div><div class="l">${esc(T('summary.ebudDailyAvg'))}</div><div class="v">${eb.dailyAvg}<small style="font-size:11px;color:var(--muted);font-weight:600"> 건/일</small></div></div>
-          <div><div class="l">${esc(T('summary.ebudWeeklyAvg'))}</div><div class="v">${eb.weeklyAvg}<small style="font-size:11px;color:var(--muted);font-weight:600"> 건/주</small></div></div>
-        </div>
-        <div class="sub">
-          <div><div class="l">${esc(T('summary.ebudSuccess'))}</div><div class="v">${m.successRate}%</div></div>
-          <div><div class="l">${esc(T('summary.ebudMtbf'))}</div><div class="v">${m.mtbf.current}</div></div>
-          <div><div class="l">${esc(T('summary.ebudRecur'))}</div><div class="v" style="color:var(--crit)">${DATA.recurrence.count}</div></div>
-        </div>
-      </div>
-    </div>
-    <div class="kpis">
-      <div class="kpi"><div><div class="k">${esc(T('summary.kpiProgress'))}</div><div class="v">${m.progress.pct}<small>%</small></div><div class="sub">${esc(TT('summary.kpiProgressSub', { cum: m.progress.cum, target: m.progress.target }))}</div></div>${spark(attemptSeries, '#2E89D6')}</div>
-      <div class="kpi"><div><div class="k">${esc(T('summary.kpiSuccess'))}</div><div class="v">${m.successRate}<small>%</small></div><div class="sub">${esc(TT('summary.kpiSuccessSub', { success: m.success, errors: m.errorsTotal }))}</div></div>${spark(m.weekly.map(w => w.weekSuccess), '#3E9B6E')}</div>
-      <div class="kpi"><div><div class="k">${esc(T('summary.kpiMtbf'))}</div><div class="v">${m.mtbf.current}<small>Cy</small></div><div class="sub">${esc(TT('summary.kpiMtbfSub', { target: m.mtbf.target }))}</div></div>${spark(m.weekly.map(w => w.mtbf), '#2E89D6')}</div>
-      <div class="kpi"><div><div class="k">${esc(T('summary.kpiRecur'))}</div><div class="v">${DATA.recurrence.rate}<small>%</small></div><div class="sub">${esc(T('summary.kpiRecurSub'))}</div></div>${spark(m.weekly.map(w => w.errors), '#E08600')}</div>
-      <div class="kpi"><div><div class="k">${esc(T('summary.kpiThroughput'))}</div><div class="v">${m.throughput.daily}<small>회/일</small></div><div class="sub">${esc(TT('summary.kpiThroughputSub', { total: m.throughput.total }))}</div></div>${spark(weekTotals, '#9bc4ea')}</div>
-    </div>`;
+    `;
 }
 
 function stepHead(no, title, q, chip, cls) {
@@ -453,8 +476,8 @@ function renderSteps(C, m, f, acc, op) {
   const errlog = DATA.errors.map((e, i) => `<tr><td><b>${esc(e.code)}</b></td><td>${esc(e.type)}<br><span class="mini">${esc((e.cause || '').slice(0, 30))}</span></td><td class="c">${esc(e.owner_sec || e.owner || '')}</td><td class="c"><button class="btn" style="padding:4px 9px" onclick="openModal(${i})">${esc(T('steps.errlogBtn'))}</button></td></tr>`).join('');
   const flow = T('steps.flow', []);
   const flowHtml = flow.map((s, i) => `<span class="b${i === flow.length - 1 ? ' last' : ''}">${esc(s)}</span>`).join('<span class="ar">→</span>');
-  // 주차별 추이 범례 — 주차성공(파랑)·누적(빨강)·리셋(✕)·목표곡선(점선 --)
-  const GROWTH_LG = [{ color: '#1E4A7A' }, { color: '#C0392B' }, { color: '#8B2E1F', x: true }, { color: '#1565C0', dash: true }];
+  // 주차별 추이 범례 — 누적연속(빨강)·리셋(✕)·목표곡선(점선 --)
+  const GROWTH_LG = [{ color: '#C0392B' }, { color: '#8B2E1F', x: true }, { color: '#1565C0', dash: true }];
   const growthLegendHtml = (T('steps.growthLegend', [])).map((lg, i) => {
     const mt = GROWTH_LG[i] || {};
     const icon = mt.x
@@ -501,6 +524,10 @@ function renderSteps(C, m, f, acc, op) {
           <div class="panel"><h3>${esc(TT('steps.mtbfTitle', { target: m.mtbf.target }))}</h3><div class="psub">${esc(T('steps.mtbfSub'))}</div>${lineChart(m.weekly.map(w => w.mtbf), m.mtbf.target)}</div>
           <div class="panel"><h3>${esc(T('steps.stabTitle'))}</h3><div class="psub">${esc(T('steps.stabSub'))}</div>${stabChart(m.weekly)}<div class="clegend">${(T('steps.stabLegend', [])).map((lg, i) => `<span><i style="background:${['#8B2E1F', '#2E89D6'][i]}"></i>${esc(lg)}</span>`).join('')}</div></div>
         </div>
+        <div class="panel mt"><h3>${esc(T('steps.errRateTitle'))}</h3><div class="psub">${esc(T('steps.errRateSub'))}</div>
+          ${recentErrBadge(m.recentWindow)}
+          ${errRateChart(m.errRate || [])}
+          <div class="clegend">${(T('steps.errRateLegend', [])).map((lg, i) => `<span><i style="background:${['#E08600', '#8B2E1F'][i]}"></i>${esc(lg)}</span>`).join('')}</div></div>
       </div>
     </section>
 
