@@ -557,7 +557,19 @@ def _compute(daily, errors, config, codes, actions) -> dict:
     success = max(0, cum_total - cum_err)
     streak_cur = daily[-1]["streak"] if daily else 0
     streak_max = max((d["streak"] for d in daily), default=0)
-    mtbf_cur = round(cum_total / cum_err) if cum_err else cum_total
+
+    # ── 고장(failure) 판정 ──────────────────────────────────────
+    # 에러 ≠ 고장. 에러로그의 코드/유형에 failureKeyword("고장")가 포함된 항목만 '진짜 고장'.
+    # MTBF·신뢰수준(무고장 시험)은 에러버짓·연속성공과 무관하게 '고장' 기준으로만 리셋된다
+    #  → 일반 에러가 나도 무고장 연속 Cycle은 계속 올라가고, '고장'이 찍힌 순간에만 0으로 끊긴다.
+    fail_kw = acc.get("failureKeyword", "고장")
+    def _is_failure(e):
+        return bool(fail_kw) and fail_kw in f"{e.get('code','')} {e.get('type','')}"
+    failures = [e for e in errors if _is_failure(e)]
+    failure_count = len(failures)
+    last_fail_cycle = max((e["cycle"] for e in failures if e.get("cycle")), default=0)
+    failure_free = max(0, cum_total - last_fail_cycle)   # 마지막 고장 이후 누적 Cycle(고장 0건이면 전체)
+    mtbf_cur = round(cum_total / failure_count) if failure_count else cum_total
 
     # ── 에러 버짓 리셋 모델 ──────────────────────────────────────
     # 한 '시도(attempt)'는 연속 target Cycle + 에러 ≤ error_limit 를 동시에 만족해야 합격.
@@ -584,10 +596,16 @@ def _compute(daily, errors, config, codes, actions) -> dict:
             continue
         w = weekly.setdefault(wk, {"total": 0, "errors": 0, "lastStreak": 0})
         w["total"] += d["total"]; w["errors"] += d["errors"]; w["lastStreak"] = d["streak"]
+    # 주차별 고장 건수(MTBF=Mean Cycles Between Failures 산출용 — 에러 아님)
+    fail_wk = {}
+    for e in failures:
+        wk = _iso_week(e.get("date", "")) if e.get("date") else None
+        if wk is not None:
+            fail_wk[wk] = fail_wk.get(wk, 0) + 1
     weekly_list = []
-    run_t = run_e = 0
+    run_t = run_e = run_f = 0
     for i, (key, w) in enumerate(sorted(weekly.items()), start=1):
-        run_t += w["total"]; run_e += w["errors"]
+        run_t += w["total"]; run_e += w["errors"]; run_f += fail_wk.get(key, 0)
         try:
             week_start = date.fromisocalendar(key[0], key[1], 1).isoformat()
         except Exception:
@@ -596,13 +614,13 @@ def _compute(daily, errors, config, codes, actions) -> dict:
             "week": f"W{i}", "weekStart": week_start, "cumStreak": w["lastStreak"],
             "weekSuccess": max(0, w["total"] - w["errors"]), "errors": w["errors"],
             "errRate": round(run_e / run_t * 100, 1) if run_t else 0,
-            "mtbf": round(run_t / run_e) if run_e else run_t,
+            "mtbf": round(run_t / run_f) if run_f else run_t,
         })
 
     # 신뢰수준 (무고장 시험): C = 1 − e^(−n/MTBF목표)
     def required(c):
         return round(mtbf_t * (-math.log(1 - c))) if 0 < c < 1 else 0
-    conf_cur = 1 - math.exp(-streak_cur / mtbf_t) if mtbf_t else 0
+    conf_cur = 1 - math.exp(-failure_free / mtbf_t) if mtbf_t else 0
     conf_table = [{"c": round(c * 100), "required": required(c)} for c in (0.80, 0.87, 0.90)]
 
     # 코드 집계 + 코드마스터(등급) 조인
@@ -711,11 +729,13 @@ def _compute(daily, errors, config, codes, actions) -> dict:
             "success": success, "errorsTotal": cum_err,
             "mtbf": {"current": mtbf_cur, "target": mtbf_t},
             "streak": {"current": streak_cur, "max": streak_max},
+            "failure": {"count": failure_count, "lastCycle": last_fail_cycle,
+                        "freeCycles": failure_free, "keyword": fail_kw},
             "weekly": weekly_list,
             "throughput": {"total": cum_total,
                            "daily": round(cum_total / len(daily), 1) if daily else 0},
             "confidence": {"level": conf_lv, "current": round(conf_cur, 3),
-                           "currentPct": round(conf_cur * 100), "currentCycles": streak_cur,
+                           "currentPct": round(conf_cur * 100), "currentCycles": failure_free,
                            "requiredForLevel": required(conf_lv), "table": conf_table},
         },
         "failure": {"top5ByCode": top5_by_code, "paretoByType": pareto,

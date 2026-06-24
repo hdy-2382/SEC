@@ -344,7 +344,7 @@ function renderSummary(C, m, acc, op) {
         <div class="gmain">
           <div><div class="gbig">${m.progress.cum}<small>/${m.progress.target}</small></div><div class="gp">${esc(TT('summary.progressRate', { pct: m.progress.pct }))}</div></div>
           <div class="gsep"></div>
-          <div><div class="gbig">${m.streak.current}<small>Cy</small></div><div class="gp">${esc(TT('summary.streakLabel', { max: m.streak.max }))}</div></div>
+          <div><div class="gbig">${Math.max(0, m.progress.target - m.progress.cum)}<small>Cy</small></div><div class="gp">${esc(T('summary.streakLabel'))}</div></div>
         </div>
         <div class="gbar"><i style="width:${Math.min(100, m.progress.pct)}%;background:linear-gradient(90deg,#2E89D6,#5fb0ec)"></i></div>
         <div class="gnote">${esc(TT('summary.goalPrimaryNote', { errors: m.errorsTotal, remain: Math.max(0, m.progress.target - m.progress.cum) }))}</div>
@@ -374,8 +374,8 @@ function renderSummary(C, m, acc, op) {
             <div class="hstats">
               <div class="s"><div class="l">${esc(T('summary.heroCur'))}</div><div class="v">${m.progress.cum}<small>회</small></div></div>
               <div class="s"><div class="l">${esc(T('summary.heroTarget'))}</div><div class="v">${m.progress.target}<small>회</small></div></div>
-              <div class="s"><div class="l">${esc(T('summary.heroStreak'))}</div><div class="v">${m.streak.current}<small>Cy</small></div></div>
-              <div class="s"><div class="l">${esc(T('summary.heroMax'))}</div><div class="v">${m.streak.max}<small>Cy</small></div></div>
+              <div class="s"><div class="l">${esc(T('summary.heroStreak'))}</div><div class="v">${conf.currentCycles}<small>Cy</small></div></div>
+              <div class="s"><div class="l">${esc(T('summary.heroMax'))}</div><div class="v">${m.failure.count}<small>건</small></div></div>
             </div>
           </div>
           <div class="hdonut">${heroDonut(m.progress.pct)}<div class="ctr"><b>${m.progress.pct}%</b><span>${esc(T('summary.heroDonutSub'))}</span></div></div>
