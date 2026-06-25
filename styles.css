@@ -309,5 +309,9 @@
   .ovchart{cursor:zoom-in;transition:box-shadow .12s,border-color .12s}
   .ovchart:hover{box-shadow:0 4px 14px rgba(15,20,25,.13);border-color:var(--sky)}
   .modal.wide{max-width:1120px}
+  /* 상세 보기 패널을 관제 템플릿 톤으로 통일 (타이트 패딩 + .ph 헤더) */
+  #s-status .panel,#s-steps .panel,#s-info .panel{padding:12px 15px}
+  .ph .vlabel{margin-left:auto}
+  .ph+.psub{margin-top:-3px}
   @media(max-width:1180px){.kstrip{grid-template-columns:repeat(3,1fr)}
     .ct-grid .sp3,.ct-grid .sp4,.ct-grid .sp5,.ct-grid .sp6,.ct-grid .sp7,.ct-grid .sp8{grid-column:span 12}}

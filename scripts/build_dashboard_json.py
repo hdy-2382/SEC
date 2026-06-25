@@ -664,10 +664,23 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
     errrate_list = []
     er_t = er_e = 0
     _md = lambda s: f"{int(s[5:7])}/{int(s[8:10])}"          # 'YYYY-MM-DD' → 'M/D'
+    # 주차 라벨을 '주차별 연속추이' 차트와 동일하게: 프로젝트 시작주(월요일) 기준 주차 번호
+    _proj_start = config.get("project", {}).get("startDate")
+    def _proj_week(iso_key):
+        if not (err_bin == "week" and _proj_start and isinstance(iso_key, tuple)):
+            return None
+        try:
+            bmon = date.fromisocalendar(iso_key[0], iso_key[1], 1)
+            s = date.fromisoformat(_proj_start)
+            smon = s - timedelta(days=s.weekday())
+            return (bmon - smon).days // 7 + 1
+        except Exception:
+            return None
     for i, key in enumerate(order):
         b = buckets[key]
         er_t += b["cycles"]; er_e += b["errors"]
-        label = f"{i + 1}주차" if err_bin == "week" else f"{int(key[5:7])}월"
+        _wn = _proj_week(key)
+        label = (f"{_wn}주차" if _wn else f"{i + 1}주차") if err_bin == "week" else f"{int(key[5:7])}월"
         rng = _md(b["d0"]) if b["d0"] == b["d1"] else f"{_md(b['d0'])}~{_md(b['d1'])}"
         errrate_list.append({
             "period": label, "range": rng, "cycles": b["cycles"], "errors": b["errors"],
@@ -700,9 +713,12 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
         win_to = date.fromisoformat(max(daily_dates))
         win_from, rw_cyc, rw_err = _window(win_to)
         anchored_on = "lastData"
+    # 라벨용 시작일: 윈도우 내 '실제 데이터' 최초일 (윈도우가 데이터 이전까지 뻗어 과대표기되는 것 방지)
+    _inwin = [d for d in daily_dates if win_from.isoformat() <= d <= win_to.isoformat()]
+    disp_from = min(_inwin) if _inwin else win_from.isoformat()
     recent_window = {
         "weeks": recent_weeks,
-        "fromDate": win_from.isoformat(), "toDate": win_to.isoformat(),
+        "fromDate": disp_from, "toDate": win_to.isoformat(),
         "cycles": rw_cyc, "errors": rw_err,
         "rate": round(rw_err / rw_cyc * 100, 1) if rw_cyc else 0,
         "mtbi": round(rw_cyc / rw_err) if rw_err else rw_cyc,
@@ -792,7 +808,7 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
     criteria = [
         {"key": "완주", "value": f"{attempt_cycles}/{target}",
          "status": st(attempt_cycles >= target, prog=attempt_cycles < target)},
-        {"key": f"MTBF≥{mtbf_t} @{int(conf_lv * 100)}%", "value": f"{round(conf_cur * 100)}%",
+        {"key": f"MTBF≥{mtbf_t} @{int(conf_lv * 100)}%", "value": f"MTBF {mtbf_cur} / 신뢰수준 {round(conf_cur * 100)}%",
          "status": st(conf_cur >= conf_lv)},
         {"key": "미해결 Critical=0", "value": f"{open_critical}건",
          "status": st(open_critical <= acc.get("criticalOpenLimit", 0))},

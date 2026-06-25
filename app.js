@@ -342,13 +342,13 @@ function renderStatus(C, m) {
   return `
     <div class="sbox-h"><span class="tag">${esc(T('status.tag'))}</span><h2>${esc(T('status.title'))}</h2><span class="d">${esc(T('status.desc'))}</span></div>
     <div class="panel" style="margin-bottom:14px">
-      <div class="row-flex"><h3>${esc(T('status.stageTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(T('status.stageCurrentPrefix'))}${esc(cur ? cur.stage : '—')}</span></div>
+      <div class="ph"><h3>${esc(T('status.stageTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(T('status.stageCurrentPrefix'))}${esc(cur ? cur.stage : '—')}</span></div>
       <div class="psub">${esc(TT('status.stageSub', { n: (C.lifecycle || []).length }))}</div>
       <div class="lifecycle">${lc}</div>
     </div>
     <div class="grid g2 status-grid">
       <div class="panel">
-        <div class="row-flex"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
+        <div class="ph"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
         <div class="psub">${esc(T('status.lineSub'))}</div>
         <div class="layout-figure">
           <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('status.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
@@ -356,7 +356,7 @@ function renderStatus(C, m) {
         </div>
       </div>
       <div class="panel">
-        <div class="row-flex"><h3>${esc(T('status.swTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.swBadge', { n: swAvg }))}</span></div>
+        <div class="ph"><h3>${esc(T('status.swTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.swBadge', { n: swAvg }))}</span></div>
         <div class="psub">${esc(T('status.swSub'))}</div>
         <div class="sw-2col" style="grid-template-columns:${swP}fr ${swC}fr">
           <div class="sw-photo" style="height:${swH}px"><img src="${esc(T('status.swImage', 'data/assets/sw_status.png'))}" alt="${esc(T('status.swTitle'))}" style="object-fit:${esc(swFit)}" onerror="this.style.display='none';this.parentNode.classList.add('empty')"><span class="ph">${esc(T('status.swImageHint', '사진 영역'))}</span></div>
@@ -402,6 +402,9 @@ function renderSummary(C, m, acc, op) {
   const recentRate = (m.recentWindow || {}).rate || 0, errTgt = m.errRateTarget;
   const dMtbf = m.mtbf.target ? m.mtbf.current / m.mtbf.target * 100 : 0;
   const dErr = errTgt != null ? (recentRate > 0 ? Math.min(100, errTgt / recentRate * 100) : 100) : 0;
+  const levelPct = Math.round(conf.level * 100);
+  const dConf = levelPct ? conf.currentPct / levelPct * 100 : 0;
+  const succ = m.successRate || 0;
   const remain = Math.max(0, m.progress.target - m.progress.cum);
   const ebudNote = eb.resets ? TT('summary.ebudReset', { n: eb.resets, total: eb.lifetimeErrors }) : TT('summary.ebudNoReset', { total: eb.lifetimeErrors });
   return `
@@ -434,9 +437,14 @@ function renderSummary(C, m, acc, op) {
         <span class="gstatus gs-cond">${acc.passed}/${acc.total} · ${esc(goalConf.status === 'pass' ? T('summary.goalSecondaryPass') : T('summary.goalSecondaryCond'))}</span>
         <div class="gl">${esc(T('summary.goalSecondaryTitle'))}</div>
         <div class="gt">${esc(TT('summary.goalSecondaryGoal', { mtbf: m.mtbf.target, conf: Math.round(conf.level * 100), err: m.errRateTarget }))}</div>
-        <div style="display:flex;gap:10px;margin:12px 0 10px;justify-content:space-around">
-          ${miniDonut(dMtbf, '#2E89D6', `${m.mtbf.current}`, T('summary.donutMtbf'), TT('summary.donutMtbfSub', { t: m.mtbf.target }), 104)}
-          ${miniDonut(dErr, '#E08600', `${recentRate}%`, T('summary.donutErrRate'), TT('summary.donutErrRateSub', { t: errTgt }), 104)}
+        <div style="display:flex;gap:8px;margin:12px 0 8px;justify-content:space-around">
+          ${miniDonut(dConf, '#C0392B', `${conf.currentPct}%`, T('summary.donutConf'), TT('summary.donutConfSub', { t: levelPct }), 96)}
+          ${miniDonut(dMtbf, '#2E89D6', `${m.mtbf.current}`, T('summary.donutMtbf'), TT('summary.donutMtbfSub', { t: m.mtbf.target }), 96)}
+          ${miniDonut(dErr, '#E08600', `${recentRate}%`, T('summary.donutErrRate'), TT('summary.donutErrRateSub', { t: errTgt }), 96)}
+        </div>
+        <div class="srow" style="border-top:1px solid var(--line);padding-top:9px;margin-top:0">
+          <span>${esc(T('summary.kpiSuccess'))} <b>${succ.toFixed(1)}%</b> <span class="mini">(성공 ${fmt(m.success)}·실패 ${fmt(m.errorsTotal)})</span></span>
+          <span>최근 에러율 <b>${recentRate}%</b> <span class="mini">목표 &lt;${errTgt}%</span></span>
         </div>
         <div class="srow">${T('summary.opRel')} <span class="badge ${op.grade === '양호' ? 'b-ok' : op.grade === '주의' ? 'b-major' : 'b-prog'}">${esc(op.grade)}</span> ${TT('summary.opRelDetail', { recur: op.recur, closed: op.verifyClosedRate, open: op.openCritical })}</div>
         <div class="gnote" style="color:var(--muted)">${esc(T('summary.goalSecondaryNote'))}</div>
@@ -465,7 +473,7 @@ function renderSteps(C, m, f, acc, op) {
     <td class="c"><span class="badge ${RES_BADGE[a.verifyResult] || 'b-wait'}">${esc(a.verifyResult)}</span></td></tr>`).join('');
   const maxTop = f.top5ByCode[0] ? f.top5ByCode[0].count : 1;
   const top5 = f.top5ByCode.map(t =>
-    `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type)}${t.recur ? ' <span style="color:var(--crit)">↺</span>' : ''}</td><td class="c"><b>${t.count}</b></td><td style="width:54px"><div class="prog-bar"><i style="width:${Math.round(t.count / maxTop * 100)}%;background:${SEV_BAR[t.severity]}"></i></div></td><td class="c"><span class="badge ${SEV_BADGE[t.severity]}">${esc(t.severity.slice(0, 4))}</span></td></tr>`).join('');
+    `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type) || '<span class="mini">(미분류)</span>'}${t.recur ? ' <span style="color:var(--crit)">↺</span>' : ''}</td><td class="c"><b>${t.count}</b></td><td style="width:54px"><div class="prog-bar"><i style="width:${Math.round(t.count / maxTop * 100)}%;background:${SEV_BAR[t.severity]}"></i></div></td><td class="c"><span class="badge ${SEV_BADGE[t.severity]}">${esc(t.severity.slice(0, 4))}</span></td></tr>`).join('');
   const rows = ['Critical', 'Major', 'Minor'], cols = ['드묾', '보통', '빈발'], cell = {};
   f.matrix.forEach((it, i) => { (cell[it.severity + '|' + it.occ] = cell[it.severity + '|' + it.occ] || []).push(i + 1); });
   const mcls = { High: 'm-h', Medium: 'm-m', Low: 'm-l' };
@@ -481,6 +489,15 @@ function renderSteps(C, m, f, acc, op) {
   const gw = conf.requiredForLevel ? Math.min(100, Math.round(conf.currentCycles / conf.requiredForLevel * 100)) : 0;
   const levelPct = Math.round(conf.level * 100);
   const s4TableH = T('steps.s4TableH', []);
+  // s4 보조 지표(한눈에 보기와 동일 정보): 성공률·최근 에러율·MTBF·재발·입증 신뢰수준
+  const s4recentRate = (m.recentWindow || {}).rate || 0, s4errTgt = m.errRateTarget;
+  const s4metrics = [
+    ['성공률', m.successRate.toFixed(1) + '%', m.successRate >= 95 ? 'pass' : 'prog'],
+    ['최근 에러율', s4recentRate + '%', s4recentRate <= s4errTgt ? 'pass' : 'fail'],
+    ['MTBF', m.mtbf.current + '/' + m.mtbf.target, m.mtbf.current >= m.mtbf.target ? 'pass' : 'prog'],
+    ['재발', DATA.recurrence.count + '건', DATA.recurrence.count <= 0 ? 'pass' : 'fail'],
+    ['입증 신뢰수준', conf.currentPct + '%', conf.currentPct >= levelPct ? 'pass' : 'prog'],
+  ].map(([k, v, st]) => `<div class="crit"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><span class="s ${st}">${esc(critStatus(st))}</span></div>`).join('');
   const ctable = `<tr class="now"><td>${esc(TT('steps.s4Now', { pct: conf.currentPct }))}</td><td>${conf.currentCycles}</td><td class="c"><span class="badge b-prog">${esc(T('steps.s4Achieved'))}</span></td></tr>` +
     conf.table.map(t => `<tr><td>${t.c}%${t.c === levelPct ? esc(T('steps.s4GoalMark')) : ''}</td><td>${t.required}</td><td class="c"><span class="badge b-wait">${conf.currentCycles >= t.required ? esc(T('steps.s4Achieved')) : '+' + (t.required - conf.currentCycles)}</span></td></tr>`).join('');
   const openActions = DATA.actions.filter(a => a.verifyResult !== '검증완료').length;
@@ -488,6 +505,7 @@ function renderSteps(C, m, f, acc, op) {
   const actTable = DATA.actions.map(a => `
     <tr><td>${esc(a.id)}</td><td>${esc(a.action)}</td><td>${esc(a.code)}</td><td class="c">${esc(a.owner)}</td><td class="c">${esc(a.due)}</td>
     <td class="c"><span class="badge ${a.status === '완료' ? 'b-ok' : 'b-prog'}">${esc(a.status)}</span></td>
+    <td class="c"><span class="badge ${RES_BADGE[a.verifyResult] || 'b-wait'}">${esc(a.verifyResult)}</span></td>
     <td><div class="prog-bar"><i style="width:${a.verifyProgress}%;${a.verifyResult === '검증완료' ? 'background:var(--green)' : ''}"></i></div></td></tr>`).join('');
   const dailyH = T('steps.dailyH', []);
   const daily = DATA.daily.map(d => `<tr><td>${esc(d.date.slice(5))}</td><td class="c">${d.total}</td><td class="c">${d.errors}</td><td class="c">${d.streak}</td><td class="mini">${esc(d.notes)}</td></tr>`).join('');
@@ -513,7 +531,7 @@ function renderSteps(C, m, f, acc, op) {
     <section class="step" id="s1">
       ${stepHead(1, T('steps.s1Title'), T('steps.s1Q'), TT('steps.s1Chip', { passed: acc.passed, total: acc.total }), 'prog')}
       <div class="step-body"><div class="panel">
-        <h3>${esc(T('steps.s1PanelTitle'))}</h3><div class="psub">${esc(T('steps.s1PanelSub'))}</div>
+        <div class="ph"><h3>${esc(T('steps.s1PanelTitle'))}</h3><span class="ps">${esc(T('steps.s1PanelSub'))}</span></div>
         <div class="crit-grid">${crit}</div>
       </div></div>
     </section>
@@ -526,9 +544,9 @@ function renderSteps(C, m, f, acc, op) {
           <div class="tbl-scroll"><table><tr><th>${esc(fracasH[0] || '')}</th><th>${esc(fracasH[1] || '')}</th><th>${esc(fracasH[2] || '')}</th><th class="c" style="width:150px">${esc(tpl(fracasH[3] || '', { verify: verifyCy }))}</th><th class="c">${esc(fracasH[4] || '')}</th></tr>${fracas}</table></div>
         </div>
         <div class="grid g3 mt">
-          <div class="panel"><h3>${esc(T('steps.top5Title'))}</h3><div class="psub">${esc(T('steps.top5Sub'))}</div><table><tr>${(T('steps.top5H', [])).map((h, i) => i === 2 || i === 4 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>
-          <div class="panel"><h3>${esc(T('steps.matrixTitle'))}</h3><div class="psub">${esc(T('steps.matrixSub'))}</div><div class="matrix">${grid}</div><div class="legend-row">${legend}</div></div>
-          <div class="panel"><h3>${esc(T('steps.recurTitle'))}</h3><div class="psub">${esc(T('steps.recurSub'))}</div><div class="stat-big"><b>${DATA.recurrence.count}</b><span>${esc(TT('steps.recurUnit', { rate: DATA.recurrence.rate }))}</span></div><div class="mini">${DATA.recurrence.items.map(it => esc(it.code) + '(' + it.count + ')').join(', ') || esc(T('steps.recurNone'))}</div><div class="mini" style="margin-top:6px">${esc(T('steps.recurWarn'))}</div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.top5Title'))}</h3><span class="ps">${esc(T('steps.top5Sub'))}</span></div><table><tr>${(T('steps.top5H', [])).map((h, i) => i === 2 || i === 4 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.matrixTitle'))}</h3><span class="ps">${esc(T('steps.matrixSub'))}</span></div><div class="matrix">${grid}</div><div class="legend-row">${legend}</div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.recurTitle'))}</h3><span class="ps">${esc(T('steps.recurSub'))}</span></div><div class="stat-big"><b>${DATA.recurrence.count}</b><span>${esc(TT('steps.recurUnit', { rate: DATA.recurrence.rate }))}</span></div><div class="mini">${DATA.recurrence.items.map(it => esc(it.code) + '(' + it.count + ')').join(', ') || esc(T('steps.recurNone'))}</div><div class="mini" style="margin-top:6px">${esc(T('steps.recurWarn'))}</div></div>
         </div>
       </div>
     </section>
@@ -536,24 +554,24 @@ function renderSteps(C, m, f, acc, op) {
     <section class="step" id="s3">
       ${stepHead(3, T('steps.s3Title'), T('steps.s3Q'), T('steps.s3Chip'), 'pass')}
       <div class="step-body">
-        <div class="panel"><h3>${esc(T('steps.growthTitle'))}</h3><div class="psub">${esc(TT('steps.growthSub', { target: m.progress.target }))}</div>
+        <div class="panel"><div class="ph"><h3>${esc(T('steps.growthTitle'))}</h3><span class="ps">${esc(TT('steps.growthSub', { target: m.progress.target }))}</span></div>
           <div id="weekly-chart">${weeklyChart(m.weekly, m.progress.target)}</div>
           <div class="clegend">${growthLegendHtml}<button id="weekly-scale-btn" class="btn" onclick="toggleWeeklyScale()" style="margin-left:auto;padding:3px 10px;font-size:11px">${esc(T('steps.autoScaleLabel', 'Auto scale'))}: ${weeklyAuto ? 'ON' : 'OFF'}</button></div></div>
         <div class="grid g2 mt">
-          <div class="panel"><h3>${esc(TT('steps.mtbfTitle', { target: m.mtbf.target }))}</h3><div class="psub">${esc(T('steps.mtbfSub'))}</div>${lineChart(m.weekly.map(w => w.mtbf), m.mtbf.target)}</div>
-          <div class="panel"><h3>${esc(T('steps.stabTitle'))}</h3><div class="psub">${esc(T('steps.stabSub'))}</div>${stabChart(m.weekly)}<div class="clegend">${(T('steps.stabLegend', [])).map((lg, i) => `<span><i style="background:${['#8B2E1F', '#2E89D6'][i]}"></i>${esc(lg)}</span>`).join('')}</div></div>
+          <div class="panel"><div class="ph"><h3>${esc(TT('steps.mtbfTitle', { target: m.mtbf.target }))}</h3><span class="ps">${esc(T('steps.mtbfSub'))}</span></div>${lineChart(m.weekly.map(w => w.mtbf), m.mtbf.target)}</div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.errRateTitle'))}</h3><span class="ps">${esc(T('steps.errRateSub'))}</span></div>
+            ${recentErrBadge(m.recentWindow)}
+            ${errRateChart(m.errRate || [])}
+            <div class="clegend">${(T('steps.errRateLegend', [])).map((lg, i) => `<span><i style="background:${['#E08600', '#8B2E1F'][i]}"></i>${esc(lg)}</span>`).join('')}</div></div>
         </div>
-        <div class="panel mt"><h3>${esc(T('steps.errRateTitle'))}</h3><div class="psub">${esc(T('steps.errRateSub'))}</div>
-          ${recentErrBadge(m.recentWindow)}
-          ${errRateChart(m.errRate || [])}
-          <div class="clegend">${(T('steps.errRateLegend', [])).map((lg, i) => `<span><i style="background:${['#E08600', '#8B2E1F'][i]}"></i>${esc(lg)}</span>`).join('')}</div></div>
       </div>
     </section>
 
     <section class="step" id="s4">
       ${stepHead(4, T('steps.s4Title'), T('steps.s4Q'), `${conf.currentPct}% ${conf.current >= conf.level ? '≥' : '<'} ${levelPct}%`, conf.current >= conf.level ? 'pass' : 'fail')}
       <div class="step-body"><div class="panel">
-        <h3>${esc(T('steps.s4PanelTitle'))}</h3><div class="psub">${esc(T('steps.s4PanelSub'))}</div>
+        <div class="ph"><h3>${esc(T('steps.s4PanelTitle'))}</h3><span class="ps">${esc(T('steps.s4PanelSub'))}</span></div>
+        <div class="crit-grid" style="margin-bottom:14px">${s4metrics}</div>
         <div class="demo">
           <div>
             <div class="big">${TT('steps.s4Goal', { mtbf: m.mtbf.target, level: levelPct })}</div>
@@ -571,14 +589,14 @@ function renderSteps(C, m, f, acc, op) {
       ${stepHead(5, T('steps.s5Title'), T('steps.s5Q'), TT('steps.s5Chip', { open: openActions, crit: op.openCritical }), op.openCritical ? 'fail' : 'prog')}
       <div class="step-body">
         <div class="grid g3">
-          <div class="panel"><h3>${esc(T('steps.s5OpenCritTitle'))}</h3><div class="psub">${esc(T('steps.s5OpenCritSub'))}</div><div class="big-num" style="color:${op.openCritical ? 'var(--crit)' : 'var(--green)'}">${op.openCritical}<span style="font-size:13px;color:var(--muted)"> 건</span></div><div class="mini">${esc(op.openCritical ? T('steps.s5OpenCritUnmet') : T('steps.s5OpenCritMet'))}</div></div>
-          <div class="panel"><h3>${esc(T('steps.s5OpenActTitle'))}</h3><div class="psub">${esc(T('steps.s5OpenActSub'))}</div><div class="big-num" style="color:var(--major)">${openActions}<span style="font-size:13px;color:var(--muted)"> / ${DATA.actions.length}</span></div></div>
-          <div class="panel"><h3>${esc(T('steps.s5ClosedTitle'))}</h3><div class="psub">${esc(T('steps.s5ClosedSub'))}</div><div class="big-num" style="color:var(--navy-deep)">${op.verifyClosedRate}<span style="font-size:13px;color:var(--muted)">%</span></div><div class="prog-bar" style="margin-top:8px"><i style="width:${op.verifyClosedRate}%;background:var(--green)"></i></div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.s5OpenCritTitle'))}</h3><span class="ps">${esc(T('steps.s5OpenCritSub'))}</span></div><div class="big-num" style="color:${op.openCritical ? 'var(--crit)' : 'var(--green)'}">${op.openCritical}<span style="font-size:13px;color:var(--muted)"> 건</span></div><div class="mini">${esc(op.openCritical ? T('steps.s5OpenCritUnmet') : T('steps.s5OpenCritMet'))}</div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.s5OpenActTitle'))}</h3><span class="ps">${esc(T('steps.s5OpenActSub'))}</span></div><div class="big-num" style="color:var(--major)">${openActions}<span style="font-size:13px;color:var(--muted)"> / ${DATA.actions.length}</span></div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.s5ClosedTitle'))}</h3><span class="ps">${esc(T('steps.s5ClosedSub'))}</span></div><div class="big-num" style="color:var(--navy-deep)">${op.verifyClosedRate}<span style="font-size:13px;color:var(--muted)">%</span></div><div class="prog-bar" style="margin-top:8px"><i style="width:${op.verifyClosedRate}%;background:var(--green)"></i></div></div>
         </div>
         <div class="panel mt">
-          <div class="row-flex"><h3>${esc(T('steps.s5ActTitle'))}</h3><span class="vlabel" style="margin-left:8px">${esc(T('steps.s5ActBadge'))}</span></div>
+          <div class="ph"><h3>${esc(T('steps.s5ActTitle'))}</h3><span class="vlabel" style="margin-left:8px">${esc(T('steps.s5ActBadge'))}</span></div>
           <div class="psub">${esc(T('steps.s5ActSub'))}</div>
-          <div class="tbl-scroll"><table><tr>${s5ActH.map((h, i) => i === 0 ? `<th>${esc(h)}</th>` : i === 1 ? `<th>${esc(h)}</th>` : i === 6 ? `<th style="width:110px">${esc(h)}</th>` : `<th class="c">${esc(h)}</th>`).join('')}</tr>${actTable}</table></div>
+          <div class="tbl-scroll"><table><tr>${s5ActH.map((h, i) => i === 0 ? `<th>${esc(h)}</th>` : i === 1 ? `<th>${esc(h)}</th>` : i === 7 ? `<th style="width:96px">${esc(h)}</th>` : `<th class="c">${esc(h)}</th>`).join('')}</tr>${actTable}</table></div>
         </div>
       </div>
     </section>
@@ -588,8 +606,8 @@ function renderSteps(C, m, f, acc, op) {
       <div class="step-body">
         <div class="op-rel" style="margin-bottom:14px">${T('steps.s6Integrity')} <span class="mini" style="margin-left:auto">${esc(TT('steps.s6Source', { source: DATA.source }))}</span></div>
         <div class="grid g2">
-          <div class="panel"><h3>${esc(T('steps.dailyTitle'))}</h3><div class="psub">${esc(T('steps.dailySub'))}</div><div class="tbl-scroll"><table><tr>${dailyH.map((h, i) => i === 0 || i === 4 ? `<th>${esc(h)}</th>` : `<th class="c">${esc(h)}</th>`).join('')}</tr>${daily}</table></div></div>
-          <div class="panel"><div class="row-flex"><h3>${esc(T('steps.errlogTitle'))}</h3><span class="badge b-prog" style="margin-left:8px">${esc(T('steps.errlogBadge'))}</span></div><div class="psub">${esc(T('steps.errlogSub'))}</div><div class="tbl-scroll"><table><tr>${errlogH.map((h, i) => i === 0 || i === 1 ? `<th>${esc(h)}</th>` : `<th class="c">${esc(h)}</th>`).join('')}</tr>${errlog}</table></div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.dailyTitle'))}</h3><span class="ps">${esc(T('steps.dailySub'))}</span></div><div class="tbl-scroll"><table><tr>${dailyH.map((h, i) => i === 0 || i === 4 ? `<th>${esc(h)}</th>` : `<th class="c">${esc(h)}</th>`).join('')}</tr>${daily}</table></div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.errlogTitle'))}</h3><span class="badge b-prog" style="margin-left:8px">${esc(T('steps.errlogBadge'))}</span></div><div class="psub">${esc(T('steps.errlogSub'))}</div><div class="tbl-scroll"><table><tr>${errlogH.map((h, i) => i === 0 || i === 1 ? `<th>${esc(h)}</th>` : `<th class="c">${esc(h)}</th>`).join('')}</tr>${errlog}</table></div></div>
         </div>
       </div>
     </section>`;
@@ -615,8 +633,8 @@ function renderOverview(C, m, f, acc, op) {
     kc('k-info', '평가 진행률', (prog.pct != null ? prog.pct : 0), '%', `${fmt(prog.cum)}/${fmt(prog.target)} Cycle`, '진행'),
     kc(succ >= 95 ? 'k-go' : succ >= 85 ? 'k-warn' : 'k-bad', '성공률', succ.toFixed(1), '%', `성공 ${fmt(m.success)} · 실패 ${fmt(m.errorsTotal)}`, succ >= 95 ? '양호' : '관찰'),
     kc(recentRate <= errTgt ? 'k-go' : recentRate <= errTgt * 2 ? 'k-warn' : 'k-bad', '최근 에러율', recentRate, '%', `목표 <${errTgt}% · 에러 ${fmt(rw.errors)}/${fmt(rw.cycles)}Cy`, recentRate <= errTgt ? '충족' : '초과'),
-    kc(mtbf.current >= mtbf.target ? 'k-go' : mtbf.current >= mtbf.target * 0.5 ? 'k-warn' : 'k-bad', 'MTBF', fmt(mtbf.current), `/${fmt(mtbf.target)}`, '평균 고장간 Cycle', mtbf.current >= mtbf.target ? '충족' : '성장중'),
     kc(recurN <= (accept.recurrenceLimit != null ? accept.recurrenceLimit : 0) ? 'k-go' : 'k-bad', '재발', recurN, '건', `재발률 ${rec.rate != null ? rec.rate : 0}% · 목표 0`, recurN <= 0 ? '없음' : '발생'),
+    kc(mtbf.current >= mtbf.target ? 'k-go' : mtbf.current >= mtbf.target * 0.5 ? 'k-warn' : 'k-bad', 'MTBF', fmt(mtbf.current), `/${fmt(mtbf.target)}`, '평균 고장간 Cycle', mtbf.current >= mtbf.target ? '충족' : '성장중'),
     kc(confPct >= confLv ? 'k-go' : confPct >= confLv * 0.6 ? 'k-warn' : 'k-bad', '입증 신뢰수준', confPct, '%', `목표 ${confLv}% · 무고장 ${fmt(conf.currentCycles)}Cy`, confPct >= confLv ? '입증' : '진행'),
   ].join('');
 
@@ -648,9 +666,9 @@ function renderOverview(C, m, f, acc, op) {
 
   // 운용 신뢰도 도넛
   const opDon = [
-    miniDonut(op.verifyClosedRate || 0, 'var(--green)', (op.verifyClosedRate || 0) + '%', '검증 종결', 'Critical·Major'),
-    miniDonut(op.openCritical > 0 ? 100 : 0, op.openCritical > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.openCritical), '미해결 Crit', '종료 시 0'),
-    miniDonut(recurN > 0 ? 100 : 0, recurN > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.recur != null ? op.recur : recurN), '재발', '목표 0'),
+    miniDonut(op.verifyClosedRate || 0, 'var(--green)', (op.verifyClosedRate || 0) + '%', '검증 종결', 'Critical·Major', 104),
+    miniDonut(op.openCritical > 0 ? 100 : 0, op.openCritical > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.openCritical), '미해결 Crit', '종료 시 0', 104),
+    miniDonut(recurN > 0 ? 100 : 0, recurN > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.recur != null ? op.recur : recurN), '재발', '목표 0', 104),
   ].join('');
 
   // 양산평가 합격 기준(계약 게이트) — 연속 {target} Cycle 완주 + 에러버짓
@@ -745,7 +763,7 @@ function renderInfo(C, m) {
   return `
     <div class="sbox-h"><span class="tag">${esc(T('info.tag'))}</span><h2>${esc(T('info.title'))}</h2><span class="d">${esc(T('info.desc'))}</span></div>
     <div class="grid g2">
-      <div class="panel"><h3>${esc(T('info.overviewTitle'))}</h3><div class="psub">${esc(T('info.overviewSub'))}</div>
+      <div class="panel"><div class="ph"><h3>${esc(T('info.overviewTitle'))}</h3><span class="ps">${esc(T('info.overviewSub'))}</span></div>
         <table>
           <tr><th style="width:110px">${esc(T('info.rowProject'))}</th><td>${esc(p.name || '')}</td></tr>
           <tr><th>${esc(T('info.rowTarget'))}</th><td>${esc(TT('info.rowTargetVal', { n: stations.length, stations: stationStr }))}</td></tr>
@@ -754,7 +772,7 @@ function renderInfo(C, m) {
           <tr><th>${esc(T('info.rowSource'))}</th><td>${esc(T('info.rowSourceVal'))}</td></tr>
         </table>
       </div>
-      <div class="panel"><h3>${esc(T('info.critTitle'))}</h3><div class="psub">${esc(T('info.critSub'))}</div>
+      <div class="panel"><div class="ph"><h3>${esc(T('info.critTitle'))}</h3><span class="ps">${esc(T('info.critSub'))}</span></div>
         <table>
           <tr><th style="width:120px">${esc(T('info.critPass'))}</th><td>${TT('info.critPassVal', { target: a.targetCycle || m.progress.target, limit: a.errorLimit || 3 })}</td></tr>
           <tr><th>${esc(T('info.critRel'))}</th><td>${TT('info.critRelVal', { mtbf: a.mtbfTargetCycle || 100, conf: Math.round((a.confidenceLevel || 0.8) * 100), req: m.confidence.requiredForLevel })}</td></tr>

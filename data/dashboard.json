@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T07:19:51Z",
+  "generatedAt": "2026-06-25T01:08:31Z",
   "source": "양산평가_샘플.xlsx",
   "config": {
     "project": {
@@ -125,7 +125,8 @@
         "updatedPrefix": "업데이트 "
       },
       "nav": {
-        "all": "전체 보기",
+        "overview": "한눈에 보기",
+        "all": "상세 보기",
         "status": "개발 현황",
         "summary": "평가 결과 요약",
         "stepsGroup": "신뢰성 입증 6단계 흐름",
@@ -190,6 +191,7 @@
         "goalPrimaryGoal": "연속 {target} Cycle · 에러 {limit}회까지 허용(초과 시 리셋)",
         "progressRate": "진행률 {pct}%",
         "streakLabel": "목표까지 남은 Cycle",
+        "pCum": "누적 진행",
         "goalPrimaryNote": "누적 에러 {errors}건 · 남은 {remain} Cycle 통과가 관건 (반드시 달성)",
         "goalSecondaryPass": "충족",
         "goalSecondaryCond": "조건부",
@@ -310,7 +312,7 @@
         ],
         "errRateBin": "week",
         "errRateTitle": "기간별 에러율 안정화",
-        "errRateSub": "기간별 에러 발생률이 낮아져 안정화되는가 · 막대=해당 기간 실측 · 선=누적 평균 추세 · x축=평가 전체 주차(최근 4주 배지와 별개)",
+        "errRateSub": "막대=기간 실측 · 선=누적 평균 추세 (최근 4주 배지와 별개)",
         "errRateLegend": [
           "기간 에러율",
           "누적 평균 (안정화 추세)"
@@ -360,6 +362,7 @@
           "담당",
           "목표일",
           "상태",
+          "검증",
           "진행률"
         ],
         "s6Title": "기록 (근거)",
@@ -762,7 +765,7 @@
     ],
     "errRate": [
       {
-        "period": "1주차",
+        "period": "2주차",
         "range": "6/8~6/11",
         "cycles": 14,
         "errors": 7,
@@ -771,7 +774,7 @@
         "mtbi": 2
       },
       {
-        "period": "2주차",
+        "period": "3주차",
         "range": "6/15~6/18",
         "cycles": 41,
         "errors": 5,
@@ -782,8 +785,8 @@
     ],
     "recentWindow": {
       "weeks": 4,
-      "fromDate": "2026-05-28",
-      "toDate": "2026-06-24",
+      "fromDate": "2026-06-08",
+      "toDate": "2026-06-25",
       "cycles": 55,
       "errors": 12,
       "rate": 21.8,
@@ -989,7 +992,7 @@
       },
       {
         "key": "MTBF≥100 @80%",
-        "value": "42%",
+        "value": "MTBF 55 / 신뢰수준 42%",
         "status": "fail"
       },
       {
