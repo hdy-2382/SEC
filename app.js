@@ -101,9 +101,10 @@ function weekRange(s, endStr) {
   if (endStr) { const e = parseYMD(endStr); if (b > e) b.setTime(e.getTime()); }
   return `(${a.getMonth() + 1}/${a.getDate()}-${b.getMonth() + 1}/${b.getDate()})`;
 }
-function weeklyChart(weekly, target) {
+function weeklyChart(weekly, target, opt) {
+  opt = opt || {};
   const C = (DATA && DATA.config) || {}, proj = C.project || {};
-  const top = 16, bot = 188, left = 50, right = 986;
+  const top = 16, bot = opt.bot || 188, left = 50, right = 986, vbH = opt.vbH || 244;
   // x축: 평가기간 전체를 주차로 분할, 데이터 주차를 weekStart로 슬롯 매핑
   const slots = weekAxis(proj.startDate, proj.endDate, weekly.length || 1);
   const nSlots = Math.max(slots.length, weekly.length, 1);
@@ -113,7 +114,7 @@ function weeklyChart(weekly, target) {
   });
   // y축 최대: 고정(기본 400) ↔ auto(데이터에 맞춤). y는 클램프하지 않고 목표곡선만 clip → 왜곡 방지
   const dataMax = Math.max(...weekly.map(w => w.cumStreak), 1);
-  const yMax = weeklyAuto ? niceCeil(dataMax) : (Number(T('steps.yAxisMax', 400)) || 400);
+  const yMax = (opt.auto || weeklyAuto) ? niceCeil(dataMax) : (Number(T('steps.yAxisMax', 400)) || 400);
   const y = v => bot - (v / yMax) * (bot - top);
   const slotW = (right - left) / nSlots;
   const cx = i => left + slotW * (i + 0.5);
@@ -149,7 +150,7 @@ function weeklyChart(weekly, target) {
     }
   });
   const curveName = (T('steps.targetCurveNames', {})[curve]) || curve;
-  return `<svg viewBox="0 0 1000 244" style="width:100%;height:auto;display:block">
+  return `<svg viewBox="0 0 1000 ${vbH}" style="width:100%;height:auto;display:block">
     <defs><clipPath id="wkclip"><rect x="${left}" y="${top - 2}" width="${right - left}" height="${bot - top + 2}"/></clipPath></defs>
     ${yaxis}
     <polyline fill="none" stroke="#1565C0" stroke-width="2" stroke-dasharray="6 5" points="${ramp}" clip-path="url(#wkclip)"/>
@@ -214,8 +215,9 @@ function stabChart(weekly) {
     <polyline fill="none" stroke="#2E89D6" stroke-width="2.4" points="${pm}"/>${md}${xaxis}</svg>`;
 }
 // 기간별 에러율 안정화: 막대=그 기간 실측 에러율(건/100Cy), 선=누적 평균(안정화 추세)
-function errRateChart(rows) {
-  const top = 18, bot = 176, left = 54, right = 980;
+function errRateChart(rows, opt) {
+  opt = opt || {};
+  const top = 18, bot = opt.bot || 176, left = 54, right = 980, vbH = opt.vbH || 226;
   const n = rows.length || 1;
   const yMax = niceCeil(Math.max(...rows.map(r => Math.max(r.rate, r.cumRate)), 1));
   const y = v => bot - (v / yMax) * (bot - top);
@@ -238,7 +240,7 @@ function errRateChart(rows) {
   const pts = rows.map((r, i) => `${cx(i)},${y(r.cumRate)}`).join(' ');
   const dots = rows.map((r, i) => `<circle cx="${cx(i)}" cy="${y(r.cumRate)}" r="4" fill="#8B2E1F"/>`).join('');
   const line = n > 1 ? `<polyline fill="none" stroke="#8B2E1F" stroke-width="2.5" points="${pts}"/>` : '';
-  return `<svg viewBox="0 0 1000 226" style="width:100%;height:auto;display:block">${yaxis}<line x1="${left}" y1="${top}" x2="${left}" y2="${bot}" stroke="#C9DCEC"/>${bars}${line}${dots}${xaxis}</svg>`;
+  return `<svg viewBox="0 0 1000 ${vbH}" style="width:100%;height:auto;display:block">${yaxis}<line x1="${left}" y1="${top}" x2="${left}" y2="${bot}" stroke="#C9DCEC"/>${bars}${line}${dots}${xaxis}</svg>`;
 }
 // 최근 N주 롤링 에러율 배지: 업데이트일 기준 '현재 상태' 스냅샷 (양산 전환 시 월별 편차 보상)
 function recentErrBadge(rw) {
@@ -264,7 +266,8 @@ const RES_BADGE = { '검증완료': 'b-ok', '검증중': 'b-prog', '조치중': 
 
 /* ── 사이드 내비게이션 (라벨은 ui.nav, 아이콘/링크는 고정) ── */
 const NAV = [
-  { href: '#all', icon: '▤', key: 'all', label: '전체 보기', active: true },
+  { href: '#s-overview', icon: '◉', key: 'overview', label: '한눈에 보기', active: true },
+  { href: '#all', icon: '▤', key: 'all', label: '상세 보기' },
   { href: '#s-status', icon: '▦', key: 'status' },
   { href: '#s0', icon: '▣', key: 'summary' },
   { group: 'stepsGroup', href: '#s-steps' },
@@ -278,13 +281,29 @@ const NAV = [
   { href: '#s-info', icon: 'ℹ', key: 'info' },
 ];
 function buildNav() {
-  return NAV.map(it => {
+  // '상세 보기'(all)를 접이식 헤더로, 그 아래 개별 현황~프로젝트 정보를 #detail-group 으로 묶어 숨김/펼침
+  let html = '', detailOpen = false;
+  NAV.forEach(it => {
+    if (it.key === 'all') {
+      html += `<a href="${it.href}"${it.active ? ' class="active"' : ''} data-detailtoggle="1"><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}<span class="nav-caret">▾</span></a>`;
+      html += `<div class="nav-collapse collapsed" id="detail-group">`;
+      detailOpen = true;
+      return;
+    }
     if (it.group)   // 그룹 라벨: href 있으면 클릭 가능(해당 그룹 전체 보기), 없으면 단순 라벨
-      return it.href
+      html += it.href
         ? `<a href="${it.href}" class="t t-group">${esc(T('nav.' + it.group))}</a>`
         : `<div class="t">${esc(T('nav.' + it.group))}</div>`;
-    return `<a href="${it.href}"${it.active ? ' class="active"' : ''}><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}</a>`;
-  }).join('');
+    else
+      html += `<a href="${it.href}"${it.active ? ' class="active"' : ''}><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}</a>`;
+  });
+  if (detailOpen) html += `</div>`;
+  return html;
+}
+// '상세 보기' 하위 탭 그룹 펼침/접힘 (한눈에 보기 활성 시 접힘)
+function setDetailCollapsed(collapsed) {
+  const g = $('detail-group'); if (g) g.classList.toggle('collapsed', collapsed);
+  const t = document.querySelector('.nav a[data-detailtoggle]'); if (t) t.classList.toggle('detail-open', !collapsed);
 }
 
 /* ── 섹션 렌더러 ── */
@@ -576,6 +595,149 @@ function renderSteps(C, m, f, acc, op) {
     </section>`;
 }
 
+/* ── 한눈에 보기(관제) : 같은 데이터로 한 화면 밀집 요약 ── */
+function renderOverview(C, m, f, acc, op) {
+  const prog = m.progress || {}, mtbf = m.mtbf || {}, conf = m.confidence || {}, rw = m.recentWindow || {};
+  const rec = DATA.recurrence || {}, accept = C.acceptance || {};
+  const errTgt = m.errRateTarget || accept.errRateTargetPct || 5;
+  const recentRate = rw.rate != null ? rw.rate : (m.errRateCur || 0);
+  const succ = m.successRate || 0, recurN = rec.count || 0;
+  const confPct = conf.currentPct != null ? conf.currentPct : 0, confLv = Math.round((conf.level || 0.8) * 100);
+  const passed = acc.passed || 0, total = acc.total || 5, grade = op.grade || '—';
+  const gradeCls = grade === '양호' ? 'go' : grade === '주의' ? 'warn' : 'bad';
+
+  // KPI 카드 (상태색: go=녹 / warn=황 / bad=적 / info=파랑)
+  const kc = (cls, k, v, unit, sub, tag) =>
+    `<div class="kcard ${cls}"><div class="kk">${esc(k)}</div>
+      <div class="kv">${v}${unit ? `<small>${esc(unit)}</small>` : ''}</div>
+      <div class="ks">${esc(sub)}</div>${tag ? `<span class="kt">${esc(tag)}</span>` : ''}</div>`;
+  const kstrip = [
+    kc('k-info', '평가 진행률', (prog.pct != null ? prog.pct : 0), '%', `${fmt(prog.cum)}/${fmt(prog.target)} Cycle`, '진행'),
+    kc(succ >= 95 ? 'k-go' : succ >= 85 ? 'k-warn' : 'k-bad', '성공률', succ.toFixed(1), '%', `성공 ${fmt(m.success)} · 실패 ${fmt(m.errorsTotal)}`, succ >= 95 ? '양호' : '관찰'),
+    kc(recentRate <= errTgt ? 'k-go' : recentRate <= errTgt * 2 ? 'k-warn' : 'k-bad', '최근 에러율', recentRate, '%', `목표 <${errTgt}% · 에러 ${fmt(rw.errors)}/${fmt(rw.cycles)}Cy`, recentRate <= errTgt ? '충족' : '초과'),
+    kc(mtbf.current >= mtbf.target ? 'k-go' : mtbf.current >= mtbf.target * 0.5 ? 'k-warn' : 'k-bad', 'MTBF', fmt(mtbf.current), `/${fmt(mtbf.target)}`, '평균 고장간 Cycle', mtbf.current >= mtbf.target ? '충족' : '성장중'),
+    kc(recurN <= (accept.recurrenceLimit != null ? accept.recurrenceLimit : 0) ? 'k-go' : 'k-bad', '재발', recurN, '건', `재발률 ${rec.rate != null ? rec.rate : 0}% · 목표 0`, recurN <= 0 ? '없음' : '발생'),
+    kc(confPct >= confLv ? 'k-go' : confPct >= confLv * 0.6 ? 'k-warn' : 'k-bad', '입증 신뢰수준', confPct, '%', `목표 ${confLv}% · 무고장 ${fmt(conf.currentCycles)}Cy`, confPct >= confLv ? '입증' : '진행'),
+  ].join('');
+
+  // 위험 매트릭스 (renderSteps 와 동일 구조)
+  const mrows = ['Critical', 'Major', 'Minor'], mcols = ['드묾', '보통', '빈발'], mcell = {};
+  (f.matrix || []).forEach((it, i) => { (mcell[it.severity + '|' + it.occ] = mcell[it.severity + '|' + it.occ] || []).push(i + 1); });
+  const mcls = { High: 'm-h', Medium: 'm-m', Low: 'm-l' };
+  let mx = `<div class="lab"></div>` + mcols.map(c => `<div class="lab">${esc(c)}</div>`).join('');
+  mrows.forEach(rk => {
+    mx += `<div class="lab">${esc(rk.slice(0, 4))}</div>`;
+    mcols.forEach(ck => {
+      const p = PRIO[rk + '|' + ck], dots = (mcell[rk + '|' + ck] || []).map(n => `<span class="pt">${n}</span>`).join('');
+      mx += `<div class="cell ${mcls[p]}">${dots}</div>`;
+    });
+  });
+  const mlegend = (f.matrix || []).map((it, i) => `<span><b>${i + 1}</b>${esc(it.type || it.code)}</span>`).join('');
+
+  // Top5
+  const top5 = (f.top5ByCode || []).map(t =>
+    `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type || '-')}</td><td class="c">${t.count}</td>
+      <td class="c"><span class="badge ${SEV_BADGE[t.severity] || ''}">${esc(t.severity.slice(0, 4))}</span></td>
+      <td class="c">${t.recur ? '<span class="badge b-crit">재발</span>' : '—'}</td></tr>`).join('');
+
+  // 합격 기준 체크리스트
+  const SL = { pass: '충족', fail: '미달', prog: '진행' };
+  const chk = (acc.criteria || []).map(c =>
+    `<div class="chk"><span class="cs s ${c.status}">${esc(SL[c.status] || c.status)}</span>
+      <span class="nm">${esc(c.key)}</span><span class="vv">${esc(c.value)}</span></div>`).join('');
+
+  // 운용 신뢰도 도넛
+  const opDon = [
+    miniDonut(op.verifyClosedRate || 0, 'var(--green)', (op.verifyClosedRate || 0) + '%', '검증 종결', 'Critical·Major'),
+    miniDonut(op.openCritical > 0 ? 100 : 0, op.openCritical > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.openCritical), '미해결 Crit', '종료 시 0'),
+    miniDonut(recurN > 0 ? 100 : 0, recurN > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.recur != null ? op.recur : recurN), '재발', '목표 0'),
+  ].join('');
+
+  // 양산평가 합격 기준(계약 게이트) — 연속 {target} Cycle 완주 + 에러버짓
+  const errLimit = accept.errorLimit || 3;
+  const eb = m.errorBudget || { used: m.errorsTotal, limit: errLimit, resets: 0, lifetimeErrors: m.errorsTotal };
+  const remain = Math.max(0, prog.target - prog.cum);
+  const goalCrit = (acc.criteria || [])[0] || { status: 'prog' };
+  const ebudNote = eb.resets ? TT('summary.ebudReset', { n: eb.resets, total: eb.lifetimeErrors }) : TT('summary.ebudNoReset', { total: eb.lifetimeErrors });
+  const ebBlocks = Array.from({ length: eb.limit }, (_, i) => `<i class="${i < eb.used ? 'used' : 'free'}"></i>`).join('');
+
+  // lifecycle 미니
+  const lcStat = { done: '완료', current: '진행 중', todo: '예정' };
+  const lcm = (C.lifecycle || []).map(s => {
+    const cls = s.status === 'done' ? 'done' : s.status === 'current' ? 'cur' : 'todo';
+    return `<div class="lcm ${cls}"><div class="s">${esc(lcStat[s.status] || '')}</div><div class="n">${esc(s.stage)}</div></div>`;
+  }).join('');
+
+  // SW 모듈 바
+  const mods = (C.swModules || []).map(s => {
+    const col = s.pct >= 100 ? 'var(--green)' : s.pct >= 70 ? 'var(--sky)' : 'var(--major)';
+    return `<div class="mod"><span class="nm">${esc(s.name)}</span><div class="bar"><i style="width:${s.pct}%;background:${col}"></i></div><span class="pc">${s.pct}%</span></div>`;
+  }).join('');
+
+  // 심각도 분포
+  const sd = f.severityDist || { total: 0 };
+
+  // 최근 알람 피드
+  const codeSev = {};
+  (DATA.codes || []).forEach(c => { codeSev[c.code] = c.severity; });
+  const feed = (DATA.errors || []).slice().reverse().slice(0, 5).map(e => {
+    const sevCls = SEV_BADGE[codeSev[e.code]] || 'b-minor';
+    return `<div class="it"><span class="badge ${sevCls}">${esc(e.code)}</span>
+      <div class="tp"><div class="t1">${esc(e.type || '-')}</div><div class="t2">${esc(e.detail || e.cause || '')}</div></div>
+      <span class="dt">${esc(e.date || '')}<br>${esc(e.result || '')}</span></div>`;
+  }).join('');
+
+  // 신뢰수준 입증 표
+  const ctable = (conf.table || []).map(t =>
+    `<tr class="${t.c === confLv ? 'now' : ''}"><td>${t.c}%</td><td class="c">${t.required}</td>
+      <td class="c">${(conf.currentCycles || 0) >= t.required ? '<span class="badge b-ok">달성</span>' : '+' + (t.required - (conf.currentCycles || 0))}</td></tr>`).join('');
+
+  return `
+    <div class="sbox-h"><span class="tag">관제</span><h2>한눈에 보기 · 신뢰성 관제</h2>
+      <span class="d">핵심 지표 한 화면 · 6단계 근거는 ‘전체 보기’</span>
+      <span class="ov-grade ${gradeCls}">운용 신뢰도 ${esc(grade)}</span></div>
+    <div class="kstrip">${kstrip}</div>
+    <div class="ct-grid">
+      <div class="panel tight sp4"><div class="ph"><h3>양산평가 합격 기준</h3><span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? '달성' : '진행 중')}</span></div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px">계약 게이트 · 연속 <b>${fmt(prog.target)} Cycle</b> 완주 · 에러 <b>${errLimit}회</b>까지 허용(초과 시 리셋)</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="flex:none"><div class="big-num" style="color:var(--navy-deep);line-height:1">${fmt(prog.cum)}<span style="font-size:15px;color:var(--muted)">/${fmt(prog.target)}</span></div><div class="mini" style="margin-top:2px">남은 <b>${fmt(remain)}</b> Cycle</div></div>
+          <div style="flex:1">
+            <div class="mini" style="margin-bottom:5px">Error Budget <b>${eb.used}</b> / ${eb.limit}</div>
+            <div class="blocks" style="margin:0">${ebBlocks}</div>
+            <div class="mini" style="margin-top:7px">${esc(ebudNote)}</div>
+          </div>
+        </div></div>
+      <div class="panel tight sp4"><div class="ph"><h3>양산사양 합격 기준</h3><span class="ps">총 ${total}개 · ${passed} 충족</span></div>${chk}</div>
+      <div class="panel tight sp4"><div class="ph"><h3>운용 신뢰도 (대응)</h3><span class="ps">등급 ${esc(grade)}</span></div><div class="donrow">${opDon}</div></div>
+
+      <div class="panel tight sp6"><div class="ph"><h3>개발 단계</h3><span class="ps">전체 ${(C.lifecycle || []).length}단계 중 현재 위치</span></div><div class="lcmini">${lcm}</div></div>
+      <div class="panel tight sp6"><div class="ph"><h3>소프트웨어 완성도</h3><span class="ps">🟢완료 🔵진행 🟠미흡</span></div><div class="mods">${mods}</div></div>
+
+      <div class="panel tight sp6"><div class="ph"><h3>위험 매트릭스 · 심각도 분포</h3><span class="ps">S×O 우선순위 + 등급 분포</span></div>
+        <div style="display:flex;gap:18px;align-items:center">
+          <div style="flex:1;min-width:0"><div class="matrix">${mx}</div><div class="legend-row">${mlegend}</div></div>
+          <div style="flex:none;display:flex;align-items:center;gap:14px;border-left:1px solid var(--line-soft);padding-left:18px">
+            <div style="position:relative;flex:none;width:132px;height:132px">${sevDonut(sd).replace('width="104" height="104"', 'width="132" height="132"')}
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:27px;font-weight:800;color:var(--navy-deep)">${sd.total || 0}</b><span style="font-size:10px;color:var(--muted)">총 고장</span></div></div>
+            <div class="legend">
+              <div class="li"><span class="sw" style="background:#C0392B"></span>Critical<b>${sd.Critical || 0}</b></div>
+              <div class="li"><span class="sw" style="background:#E08600"></span>Major<b>${sd.Major || 0}</b></div>
+              <div class="li"><span class="sw" style="background:#3F7CC4"></span>Minor<b>${sd.Minor || 0}</b></div></div></div></div></div>
+      <div class="panel tight sp3"><div class="ph"><h3>빈발 고장 Top 5</h3><span class="ps">등급·재발</span></div>
+        <table><tr><th>코드</th><th>유형</th><th class="c">건수</th><th class="c">등급</th><th class="c">재발</th></tr>${top5}</table></div>
+      <div class="panel tight sp3"><div class="ph"><h3>최근 알람 / 이벤트</h3><span class="ps">최신순</span></div><div class="feed">${feed || '<div class="mini">기록 없음</div>'}</div></div>
+
+      <div class="panel tight sp3 ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>주차별 연속 추이</h3><span class="ps">목표 0→${fmt(prog.target)} 곡선 ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 372, vbH: 418 })}
+        <div class="clegend"><span><i style="background:#C0392B"></i>누적 연속</span><span style="color:#8B2E1F">✕ 리셋</span><span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> 목표</span></div></div>
+      <div class="panel tight sp3 ovchart" onclick="openChart('mtbf')" title="클릭하면 크게 보기"><div class="ph"><h3>MTBF 추이</h3><span class="ps">목표 ${fmt(m.mtbf.target)} Cy ⤢</span></div>${lineChart((m.weekly || []).map(w => w.mtbf), m.mtbf.target)}</div>
+      <div class="panel tight sp3 ovchart" onclick="openChart('stab')" title="클릭하면 크게 보기"><div class="ph"><h3>시스템 안정성 추이</h3><span class="ps">에러율↓ MTBF↑ ⤢</span></div>${stabChart(m.weekly || [])}
+        <div class="clegend"><span><i style="background:#8B2E1F"></i>에러율(좌%)</span><span><i style="background:#2E89D6"></i>MTBF(우)</span></div></div>
+      <div class="panel tight sp3 ovchart" onclick="openChart('errrate')" title="클릭하면 크게 보기"><div class="ph"><h3>기간별 에러율 안정화</h3><span class="ps">막대=실측·선=평균 ⤢</span></div>${errRateChart(m.errRate || [], { bot: 372, vbH: 418 })}
+        <div class="clegend"><span><i style="background:#E08600"></i>기간 에러율</span><span><i style="background:#8B2E1F"></i>누적 평균</span></div></div>
+    </div>`;
+}
+
 function renderInfo(C, m) {
   const p = C.project || {}, a = C.acceptance || {};
   const stations = (C.line && C.line.stations) || [];
@@ -620,8 +782,48 @@ function openModal(i) {
     ${imgs ? `<div class="ed-block"><div class="ed-lbl">${esc(T('modal.images'))}</div><div class="ed-imgs">${imgs}</div></div>` : ''}`;
   $('modal-back').classList.add('open');
 }
-function closeModal() { $('modal-back').classList.remove('open'); }
+function closeModal() {
+  $('modal-back').classList.remove('open');
+  const modal = document.querySelector('#modal-back .modal'); if (modal) modal.classList.remove('wide');
+}
 function lightbox(src) { $('lightbox-img').src = src; $('lightbox').classList.add('open'); }
+
+/* 관제 그래프 확대 팝업: 클릭 시 같은 차트를 넓은 기본 형상으로 다시 그려 모달 표시 */
+let chartModalAuto = false;   // 팝업 내 주차별 추이 y축 오토스케일 상태 (기본 OFF = 목표 곡선 표시)
+function weeklyModalBody() {
+  const m = DATA.metrics || {};
+  return `<div style="padding:4px 2px">${weeklyChart(m.weekly || [], m.progress.target, { auto: chartModalAuto })}
+    <div class="clegend" style="margin-top:12px">
+      <span><i style="background:#C0392B"></i>누적 연속</span>
+      <span style="color:#8B2E1F">✕ 리셋</span>
+      <span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> 목표 곡선</span>
+      <button class="btn" onclick="toggleChartScale()" style="margin-left:auto;padding:4px 11px;font-size:11.5px">오토스케일: ${chartModalAuto ? 'ON' : 'OFF'}</button>
+    </div></div>`;
+}
+function toggleChartScale() { chartModalAuto = !chartModalAuto; $('modal-body').innerHTML = weeklyModalBody(); }
+function openChart(key) {
+  if (!DATA) return;
+  const m = DATA.metrics || {};
+  const lg = (items) => `<div class="clegend" style="margin-top:12px">${items}</div>`;
+  let title, body;
+  if (key === 'weekly') {
+    title = '주차별 연속 사이클 추이'; body = weeklyModalBody();
+  } else {
+    const REG = {
+      mtbf: () => ({ t: 'MTBF 추이 (목표 ' + fmt(m.mtbf.target) + ' Cy)', s: lineChart((m.weekly || []).map(w => w.mtbf), m.mtbf.target), l: '' }),
+      stab: () => ({ t: '시스템 안정성 추이', s: stabChart(m.weekly || []),
+        l: lg('<span><i style="background:#8B2E1F"></i>이동 에러율(좌·%)</span><span><i style="background:#2E89D6"></i>누적 MTBF(우·Cy)</span>') }),
+      errrate: () => ({ t: '기간별 에러율 안정화', s: errRateChart(m.errRate || []),
+        l: lg('<span><i style="background:#E08600"></i>기간 에러율</span><span><i style="background:#8B2E1F"></i>누적 평균(추세)</span>') }),
+    };
+    const c = REG[key] && REG[key](); if (!c) return;
+    title = c.t; body = `<div style="padding:4px 2px">${c.s}${c.l}</div>`;
+  }
+  $('modal-title').textContent = title;
+  $('modal-body').innerHTML = body;
+  const modal = document.querySelector('#modal-back .modal'); if (modal) modal.classList.add('wide');
+  $('modal-back').classList.add('open');
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); $('lightbox').classList.remove('open'); } });
 
 /* ── 평가 기간 타임라인 ── */
@@ -642,8 +844,8 @@ function applyShellText() {
 
 /* ── 단일 섹션 뷰: 탭을 누르면 그 내용만 표시 (보고용) ──
    #s1~#s6 은 #s-steps 컨테이너 안에 있으므로, step 탭은 #s-steps 를 켜고 그 안에서 해당 step 만 남긴다. */
-const TOP_SECTIONS = ['s-status', 's0', 's-steps', 's-info'];
-let activeHref = '#all';
+const TOP_SECTIONS = ['s-overview', 's-status', 's0', 's-steps', 's-info'];
+let activeHref = '#s-overview';
 function showOnly(href) {
   const id = (href || '#all').replace('#', '');
   if (id === 'all') {                       // 전체 보기: 모든 섹션 + 6단계 전부
@@ -656,11 +858,12 @@ function showOnly(href) {
     document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = (!isStep || s.id === id) ? '' : 'none'; });
   }
   document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === href));
+  setDetailCollapsed(href === '#s-overview');   // 한눈에 보기면 접고, 상세/개별 탭이면 펼침
   activeHref = href;
   scrollTo(0, 0);
 }
-function showAllSections() {   // 인쇄(PDF 리포트) 시에는 전체를 펼친다
-  TOP_SECTIONS.forEach(t => { const el = $(t); if (el) el.style.display = ''; });
+function showAllSections() {   // 전체 보기·인쇄: 6단계 리포트 전부 펼침 (관제 요약 탭은 제외 — 중복 방지)
+  TOP_SECTIONS.forEach(t => { const el = $(t); if (el) el.style.display = (t === 's-overview') ? 'none' : ''; });
   document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = ''; });
 }
 function initRouter() {
@@ -672,7 +875,7 @@ function initRouter() {
       if (history.replaceState) history.replaceState(null, '', href);
       showOnly(href);
     }));
-  showOnly(valid.includes(location.hash) ? location.hash : '#all');
+  showOnly(valid.includes(location.hash) ? location.hash : '#s-overview');
   addEventListener('hashchange', () => { if (valid.includes(location.hash)) showOnly(location.hash); });
   addEventListener('beforeprint', showAllSections);
   addEventListener('afterprint', () => showOnly(activeHref));
@@ -685,6 +888,7 @@ function mount() {
   const evalDate = DATA.generatedAt ? DATA.generatedAt.slice(0, 10) : '—';
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
   $('foot-updated').textContent = T('app.updatedPrefix') + evalDate;
+  $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
   $('s-status').innerHTML = renderStatus(C, m);
   $('s0').innerHTML = renderSummary(C, m, acc, op);
   $('s-steps').innerHTML = renderSteps(C, m, f, acc, op);

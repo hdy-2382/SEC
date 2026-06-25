@@ -122,7 +122,8 @@
       "updatedPrefix": "업데이트 "
     },
     "nav": {
-      "all": "전체 보기",
+      "overview": "한눈에 보기",
+      "all": "상세 보기",
       "status": "개발 현황",
       "summary": "평가 결과 요약",
       "stepsGroup": "신뢰성 입증 6단계 흐름",
