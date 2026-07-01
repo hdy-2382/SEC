@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-25T04:28:29Z",
+  "generatedAt": "2026-07-01T02:05:19Z",
   "source": "양산평가_샘플.xlsx",
   "config": {
     "project": {
@@ -20,7 +20,9 @@
       "recurrenceLimit": 0,
       "verifyCycle": 200,
       "criticalOpenLimit": 0,
-      "errRateTargetPct": 5
+      "errRateTargetPct": 5,
+      "successRateTargetPct": 95,
+      "successRateWarnPct": 85
     },
     "lifecycle": [
       {
@@ -679,6 +681,69 @@
       "errors": 0,
       "streak": 1,
       "notes": ""
+    },
+    {
+      "date": "2026-06-23",
+      "personnel": "",
+      "activity": "",
+      "total": 6,
+      "errors": 1,
+      "streak": 5,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-24",
+      "personnel": "",
+      "activity": "",
+      "total": 18,
+      "errors": 0,
+      "streak": 18,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-25",
+      "personnel": "",
+      "activity": "",
+      "total": 2,
+      "errors": 1,
+      "streak": 1,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-25",
+      "personnel": "",
+      "activity": "",
+      "total": 10,
+      "errors": 0,
+      "streak": 10,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-26",
+      "personnel": "",
+      "activity": "",
+      "total": 0,
+      "errors": 0,
+      "streak": 0,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-29",
+      "personnel": "",
+      "activity": "",
+      "total": 12,
+      "errors": 0,
+      "streak": 12,
+      "notes": ""
+    },
+    {
+      "date": "2026-06-30",
+      "personnel": "",
+      "activity": "",
+      "total": 0,
+      "errors": 0,
+      "streak": 0,
+      "notes": ""
     }
   ],
   "errors": [
@@ -802,42 +867,43 @@
   ],
   "metrics": {
     "progress": {
-      "cum": 1,
+      "cum": 49,
       "target": 360,
-      "pct": 0.3
+      "pct": 13.6
     },
     "errorBudget": {
-      "used": 0,
+      "used": 2,
       "limit": 3,
       "resets": 3,
-      "lifetimeErrors": 12,
-      "dailyAvg": 0.8,
-      "weeklyAvg": 6.0
+      "lifetimeErrors": 14,
+      "dailyAvg": 0.64,
+      "weeklyAvg": 3.5
     },
-    "successRate": 78.2,
-    "success": 43,
-    "errorsTotal": 12,
+    "successRate": 86.4,
+    "success": 89,
+    "errorsTotal": 14,
     "mtbf": {
-      "current": 55,
+      "current": 103,
       "target": 100
     },
-    "errRateCur": 21.8,
+    "errRateCur": 13.6,
     "errRateTarget": 5,
     "streak": {
-      "current": 1,
-      "max": 19
+      "current": 22,
+      "max": 22
     },
     "failure": {
       "count": 0,
       "lastCycle": 0,
-      "freeCycles": 55,
+      "freeCycles": 103,
       "keyword": "고장"
     },
     "weekly": [
       {
         "week": "W1",
         "weekStart": "2026-06-08",
-        "cumStreak": 0,
+        "cumStreak": 5,
+        "reset": true,
         "weekSuccess": 7,
         "errors": 7,
         "errRate": 50.0,
@@ -847,10 +913,31 @@
         "week": "W2",
         "weekStart": "2026-06-15",
         "cumStreak": 1,
+        "reset": true,
         "weekSuccess": 36,
         "errors": 5,
         "errRate": 21.8,
         "mtbf": 55
+      },
+      {
+        "week": "W3",
+        "weekStart": "2026-06-22",
+        "cumStreak": 37,
+        "reset": false,
+        "weekSuccess": 34,
+        "errors": 2,
+        "errRate": 15.4,
+        "mtbf": 91
+      },
+      {
+        "week": "W4",
+        "weekStart": "2026-06-29",
+        "cumStreak": 49,
+        "reset": false,
+        "weekSuccess": 12,
+        "errors": 0,
+        "errRate": 13.6,
+        "mtbf": 103
       }
     ],
     "errRate": [
@@ -871,28 +958,46 @@
         "rate": 12.2,
         "cumRate": 21.8,
         "mtbi": 8
+      },
+      {
+        "period": "4주차",
+        "range": "6/23~6/26",
+        "cycles": 36,
+        "errors": 2,
+        "rate": 5.6,
+        "cumRate": 15.4,
+        "mtbi": 18
+      },
+      {
+        "period": "5주차",
+        "range": "6/29~6/30",
+        "cycles": 12,
+        "errors": 0,
+        "rate": 0.0,
+        "cumRate": 13.6,
+        "mtbi": 12
       }
     ],
     "recentWindow": {
       "weeks": 4,
       "fromDate": "2026-06-08",
-      "toDate": "2026-06-25",
-      "cycles": 55,
-      "errors": 12,
-      "rate": 21.8,
-      "mtbi": 5,
+      "toDate": "2026-07-01",
+      "cycles": 103,
+      "errors": 14,
+      "rate": 13.6,
+      "mtbi": 7,
       "lowSample": false,
       "anchoredOn": "update"
     },
     "throughput": {
-      "total": 55,
-      "daily": 3.7
+      "total": 103,
+      "daily": 4.7
     },
     "confidence": {
       "level": 0.8,
-      "current": 0.423,
-      "currentPct": 42,
-      "currentCycles": 55,
+      "current": 0.643,
+      "currentPct": 64,
+      "currentCycles": 103,
       "requiredForLevel": 161,
       "table": [
         {
@@ -1034,10 +1139,10 @@
       "severity": "Major",
       "type": "Path Error",
       "verifyStartCycle": 100,
-      "noFailCycles": 0,
+      "noFailCycles": 3,
       "verifyTarget": 200,
-      "verifyProgress": 0,
-      "verifyResult": "조치중"
+      "verifyProgress": 2,
+      "verifyResult": "검증중"
     },
     {
       "id": "A-003",
@@ -1077,12 +1182,12 @@
     "criteria": [
       {
         "key": "완주",
-        "value": "1/360",
+        "value": "49/360",
         "status": "prog"
       },
       {
         "key": "MTBF≥100 @80%",
-        "value": "MTBF 55 / 신뢰수준 42%",
+        "value": "MTBF 103 / 신뢰수준 64%",
         "status": "fail"
       },
       {

@@ -144,7 +144,7 @@ function weeklyChart(weekly, target, opt) {
   placed.forEach(w => {
     const x = cx(w.slot), bw = Math.min(17, slotW * 0.34);
     bars += `<rect x="${x - bw / 2}" y="${y(w.cumStreak)}" width="${bw}" height="${bot - y(w.cumStreak)}" fill="#C0392B"/>`;
-    if (w.errors > 0) {
+    if (w.reset) {
       const yy = y(w.cumStreak) - 10, r = 5;
       bars += `<path d="M${x - r},${yy - r} L${x + r},${yy + r} M${x - r},${yy + r} L${x + r},${yy - r}" stroke="#8B2E1F" stroke-width="2.4" stroke-linecap="round"/>`;
     }
@@ -256,6 +256,9 @@ function recentErrBadge(rw) {
 }
 
 const SEV_BADGE = { Critical: 'b-crit', Major: 'b-major', Minor: 'b-minor' };
+// 등급 배지에 표시할 글자(빈발 고장 Top5 등). 여기만 고치면 모든 화면에 반영됨.
+const SEV_LABEL = { Critical: '치명', Major: '중대', Minor: '경미' };
+const sevLabel = s => SEV_LABEL[s] || s;
 const SEV_BAR = { Critical: 'var(--crit)', Major: 'var(--major)', Minor: 'var(--minor)' };
 const PRIO = {
   'Critical|드묾': 'Medium', 'Critical|보통': 'High', 'Critical|빈발': 'High',
@@ -307,6 +310,22 @@ function setDetailCollapsed(collapsed) {
 }
 
 /* ── 섹션 렌더러 ── */
+/* 협의 및 논의 필요 항목 — config.json ui.status.discussItems (자유 편집, 재빌드 불필요).
+   각 항목 { topic, detail?, tag? }. tag → 색상(긴급/검토/협의/완료/보류) 자동 매핑.
+   mode='card'(개발 현황: 가운데 정렬 카드) | 'list'(한눈에 보기: 심플 리스트). status/overview 공용. */
+function discussModel(mode) {
+  const DTAG = { '긴급': 't-urgent', '검토': 't-review', '협의': 't-discuss', '진행': 't-review', '완료': 't-done', '보류': 't-hold' };
+  const arr = Array.isArray(T('status.discussItems')) ? T('status.discussItems') : [];
+  const items = arr.map(it => {
+    const topic = esc(it.topic || it.title || '');
+    const tag = it.tag ? `<span class="disc-tag ${DTAG[it.tag] || 't-discuss'}">${esc(it.tag)}</span>` : '';
+    if (mode === 'list') return `<li class="ovd-it">${tag}<span class="ovd-t">${topic}</span></li>`;
+    const detail = it.detail ? `<div class="disc-d">${esc(it.detail)}</div>` : '';
+    return `<li class="disc-it">${tag}<div class="disc-t">${topic}</div>${detail}</li>`;
+  }).join('') || `<li class="${mode === 'list' ? 'ovd-empty' : 'disc-empty'}">${esc(T('status.discussEmpty', '논의 필요 항목 없음'))}</li>`;
+  return { count: arr.length, items };
+}
+
 function renderStatus(C, m) {
   const lc = (C.lifecycle || []).map((s, i) => {
     const cls = s.status === 'done' ? 'done' : s.status === 'current' ? 'cur' : 'todo';
@@ -339,6 +358,7 @@ function renderStatus(C, m) {
   const swP = T('status.layout.swPhotoRatio', 3);
   const swC = T('status.layout.swContentRatio', 1);
   const swFit = T('status.layout.swImageFit', 'contain');
+  const dm = discussModel('card');
   return `
     <div class="sbox-h"><span class="tag">${esc(T('status.tag'))}</span><h2>${esc(T('status.title'))}</h2><span class="d">${esc(T('status.desc'))}</span></div>
     <div class="panel" style="margin-bottom:14px">
@@ -346,7 +366,7 @@ function renderStatus(C, m) {
       <div class="psub">${esc(TT('status.stageSub', { n: (C.lifecycle || []).length }))}</div>
       <div class="lifecycle">${lc}</div>
     </div>
-    <div class="grid g2 status-grid">
+    <div class="grid g2 status-grid" style="margin-bottom:14px">
       <div class="panel">
         <div class="ph"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
         <div class="psub">${esc(T('status.lineSub'))}</div>
@@ -366,6 +386,11 @@ function renderStatus(C, m) {
           </div>
         </div>
       </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.discussBadge', { n: dm.count }, '{n}건'))}</span></div>
+      <div class="psub">${esc(T('status.discussSub', '업체·유관부서와 확정 필요한 항목'))}</div>
+      <ul class="disc-list">${dm.items}</ul>
     </div>`;
 }
 
@@ -473,7 +498,7 @@ function renderSteps(C, m, f, acc, op) {
     <td class="c"><span class="badge ${RES_BADGE[a.verifyResult] || 'b-wait'}">${esc(a.verifyResult)}</span></td></tr>`).join('');
   const maxTop = f.top5ByCode[0] ? f.top5ByCode[0].count : 1;
   const top5 = f.top5ByCode.map(t =>
-    `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type) || '<span class="mini">(미분류)</span>'}${t.recur ? ' <span style="color:var(--crit)">↺</span>' : ''}</td><td class="c"><b>${t.count}</b></td><td style="width:54px"><div class="prog-bar"><i style="width:${Math.round(t.count / maxTop * 100)}%;background:${SEV_BAR[t.severity]}"></i></div></td><td class="c"><span class="badge ${SEV_BADGE[t.severity]}">${esc(t.severity.slice(0, 4))}</span></td></tr>`).join('');
+    `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type) || '<span class="mini">(미분류)</span>'}${t.recur ? ' <span style="color:var(--crit)">↺</span>' : ''}</td><td class="c"><b>${t.count}</b></td><td style="width:54px"><div class="prog-bar"><i style="width:${Math.round(t.count / maxTop * 100)}%;background:${SEV_BAR[t.severity]}"></i></div></td><td class="c"><span class="badge ${SEV_BADGE[t.severity]}">${esc(sevLabel(t.severity))}</span></td></tr>`).join('');
   const rows = ['Critical', 'Major', 'Minor'], cols = ['드묾', '보통', '빈발'], cell = {};
   f.matrix.forEach((it, i) => { (cell[it.severity + '|' + it.occ] = cell[it.severity + '|' + it.occ] || []).push(i + 1); });
   const mcls = { High: 'm-h', Medium: 'm-m', Low: 'm-l' };
@@ -491,8 +516,9 @@ function renderSteps(C, m, f, acc, op) {
   const s4TableH = T('steps.s4TableH', []);
   // s4 보조 지표(한눈에 보기와 동일 정보): 성공률·최근 에러율·MTBF·재발·입증 신뢰수준
   const s4recentRate = (m.recentWindow || {}).rate || 0, s4errTgt = m.errRateTarget;
+  const s4succGo = (C.acceptance && C.acceptance.successRateTargetPct != null) ? C.acceptance.successRateTargetPct : 95;
   const s4metrics = [
-    ['성공률', m.successRate.toFixed(1) + '%', m.successRate >= 95 ? 'pass' : 'prog'],
+    ['성공률', m.successRate.toFixed(1) + '%', m.successRate >= s4succGo ? 'pass' : 'prog'],
     ['최근 에러율', s4recentRate + '%', s4recentRate <= s4errTgt ? 'pass' : 'fail'],
     ['MTBF', m.mtbf.current + '/' + m.mtbf.target, m.mtbf.current >= m.mtbf.target ? 'pass' : 'prog'],
     ['재발', DATA.recurrence.count + '건', DATA.recurrence.count <= 0 ? 'pass' : 'fail'],
@@ -620,6 +646,8 @@ function renderOverview(C, m, f, acc, op) {
   const errTgt = m.errRateTarget || accept.errRateTargetPct || 5;
   const recentRate = rw.rate != null ? rw.rate : (m.errRateCur || 0);
   const succ = m.successRate || 0, recurN = rec.count || 0;
+  const succGo = accept.successRateTargetPct != null ? accept.successRateTargetPct : 95;
+  const succWarn = accept.successRateWarnPct != null ? accept.successRateWarnPct : 85;
   const confPct = conf.currentPct != null ? conf.currentPct : 0, confLv = Math.round((conf.level || 0.8) * 100);
   const passed = acc.passed || 0, total = acc.total || 5, grade = op.grade || '—';
   const gradeCls = grade === '양호' ? 'go' : grade === '주의' ? 'warn' : 'bad';
@@ -634,7 +662,7 @@ function renderOverview(C, m, f, acc, op) {
       <div class="ks">${esc(sub)}</div>${tag ? `<span class="kt">${esc(tag)}</span>` : ''}</div>`;
   const kstrip = [
     kc('k-info', O('kpiProgress'), (prog.pct != null ? prog.pct : 0), '%', OT('kpiProgressSub', { cum: fmt(prog.cum), target: fmt(prog.target) }), O('kpiProgressTag')),
-    kc(succ >= 95 ? 'k-go' : succ >= 85 ? 'k-warn' : 'k-bad', O('kpiSuccess'), succ.toFixed(1), '%', OT('kpiSuccessSub', { success: fmt(m.success), errors: fmt(m.errorsTotal) }), succ >= 95 ? O('kpiSuccessTagGo') : O('kpiSuccessTagWarn')),
+    kc(succ >= succGo ? 'k-go' : succ >= succWarn ? 'k-warn' : 'k-bad', O('kpiSuccess'), succ.toFixed(1), '%', OT('kpiSuccessSub', { success: fmt(m.success), errors: fmt(m.errorsTotal) }), succ >= succGo ? O('kpiSuccessTagGo') : O('kpiSuccessTagWarn')),
     kc(recentRate <= errTgt ? 'k-go' : recentRate <= errTgt * 2 ? 'k-warn' : 'k-bad', O('kpiErrRate'), recentRate, '%', OT('kpiErrRateSub', { tgt: errTgt, errors: fmt(rw.errors), cycles: fmt(rw.cycles) }), recentRate <= errTgt ? O('kpiErrRateTagGo') : O('kpiErrRateTagBad')),
     kc(recurN <= (accept.recurrenceLimit != null ? accept.recurrenceLimit : 0) ? 'k-go' : 'k-bad', O('kpiRecur'), recurN, '건', OT('kpiRecurSub', { rate: rec.rate != null ? rec.rate : 0 }), recurN <= 0 ? O('kpiRecurTagGo') : O('kpiRecurTagBad')),
     kc(mtbf.current >= mtbf.target ? 'k-go' : mtbf.current >= mtbf.target * 0.5 ? 'k-warn' : 'k-bad', O('kpiMtbf'), fmt(mtbf.current), `/${fmt(mtbf.target)}`, O('kpiMtbfSub'), mtbf.current >= mtbf.target ? O('kpiMtbfTagGo') : O('kpiMtbfTagWarn')),
@@ -659,7 +687,7 @@ function renderOverview(C, m, f, acc, op) {
   // Top5
   const top5 = (f.top5ByCode || []).map(t =>
     `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type || '-')}</td><td class="c">${t.count}</td>
-      <td class="c"><span class="badge ${SEV_BADGE[t.severity] || ''}">${esc(t.severity.slice(0, 4))}</span></td>
+      <td class="c"><span class="badge ${SEV_BADGE[t.severity] || ''}">${esc(sevLabel(t.severity))}</span></td>
       <td class="c">${t.recur ? `<span class="badge b-crit">${esc(O('recurBadge', '재발'))}</span>` : '—'}</td></tr>`).join('');
 
   // 합격 기준 체크리스트
@@ -709,6 +737,9 @@ function renderOverview(C, m, f, acc, op) {
       <span class="dt">${esc(e.date || '')}<br>${esc(e.result || '')}</span></div>`;
   }).join('');
 
+  // 협의 및 논의 필요(한눈에 보기용 — 심플 리스트)
+  const ovDiscuss = discussModel('list');
+
   // 신뢰수준 입증 표
   const ctable = (conf.table || []).map(t =>
     `<tr class="${t.c === confLv ? 'now' : ''}"><td>${t.c}%</td><td class="c">${t.required}</td>
@@ -733,22 +764,23 @@ function renderOverview(C, m, f, acc, op) {
       <div class="panel tight sp4"><div class="ph"><h3>${esc(O('specTitle'))}</h3><span class="ps">${esc(OT('specSub', { total, passed }))}</span></div>${chk}</div>
       <div class="panel tight sp4"><div class="ph"><h3>${esc(O('opTitle'))}</h3><span class="ps">${esc(OT('opSub', { grade }))}</span></div><div class="donrow">${opDon}</div></div>
 
-      <div class="panel tight sp6"><div class="ph"><h3>${esc(O('lcTitle'))}</h3><span class="ps">${esc(OT('lcSub', { n: (C.lifecycle || []).length }))}</span></div><div class="lcmini">${lcm}</div></div>
-      <div class="panel tight sp6"><div class="ph"><h3>${esc(O('swTitle'))}</h3><span class="ps">${esc(O('swSub'))}</span></div><div class="mods">${mods}</div></div>
+      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('lcTitle'))}</h3><span class="ps">${esc(OT('lcSub', { n: (C.lifecycle || []).length }))}</span></div><div class="lcmini wrap">${lcm}</div></div>
+      <div class="panel tight sp3"><div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="ps" style="margin-left:auto">${esc(TT('status.discussBadge', { n: ovDiscuss.count }, '{n}건'))}</span></div><ul class="ov-disc">${ovDiscuss.items}</ul></div>
+      <div class="panel tight sp5"><div class="ph"><h3>${esc(O('swTitle'))}</h3><span class="ps">${esc(O('swSub'))}</span></div><div class="mods">${mods}</div></div>
 
-      <div class="panel tight sp6"><div class="ph"><h3>${esc(O('matrixTitle'))}</h3><span class="ps">${esc(O('matrixSub'))}</span></div>
-        <div style="display:flex;gap:18px;align-items:center">
+      <div class="panel tight sp4 ovmx"><div class="ph"><h3>${esc(O('matrixTitle'))}</h3><span class="ps">${esc(O('matrixSub'))}</span></div>
+        <div class="ovmx-row" style="display:flex;gap:12px;align-items:center">
           <div style="flex:1;min-width:0"><div class="matrix">${mx}</div><div class="legend-row">${mlegend}</div></div>
-          <div style="flex:none;display:flex;align-items:center;gap:14px;border-left:1px solid var(--line-soft);padding-left:18px">
-            <div style="position:relative;flex:none;width:132px;height:132px">${sevDonut(sd).replace('width="104" height="104"', 'width="132" height="132"')}
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:27px;font-weight:800;color:var(--navy-deep)">${sd.total || 0}</b><span style="font-size:10px;color:var(--muted)">${esc(O('matrixTotal', '총 고장'))}</span></div></div>
+          <div class="ovmx-side" style="flex:none;display:flex;align-items:center;gap:10px;border-left:1px solid var(--line-soft);padding-left:12px">
+            <div style="position:relative;flex:none;width:104px;height:104px">${sevDonut(sd)}
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:22px;font-weight:800;color:var(--navy-deep)">${sd.total || 0}</b><span style="font-size:9.5px;color:var(--muted)">${esc(O('matrixTotal', '총 고장'))}</span></div></div>
             <div class="legend">
               <div class="li"><span class="sw" style="background:#C0392B"></span>Critical<b>${sd.Critical || 0}</b></div>
               <div class="li"><span class="sw" style="background:#E08600"></span>Major<b>${sd.Major || 0}</b></div>
               <div class="li"><span class="sw" style="background:#3F7CC4"></span>Minor<b>${sd.Minor || 0}</b></div></div></div></div></div>
-      <div class="panel tight sp3"><div class="ph"><h3>${esc(O('top5Title'))}</h3><span class="ps">${esc(O('top5Sub'))}</span></div>
+      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('top5Title'))}</h3><span class="ps">${esc(O('top5Sub'))}</span></div>
         <table><tr>${(O('top5H', ['코드', '유형', '건수', '등급', '재발'])).map((h, i) => i >= 2 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>
-      <div class="panel tight sp3"><div class="ph"><h3>${esc(O('feedTitle'))}</h3><span class="ps">${esc(O('feedSub'))}</span></div><div class="feed">${feed || `<div class="mini">${esc(O('feedEmpty', '기록 없음'))}</div>`}</div></div>
+      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('feedTitle'))}</h3><span class="ps">${esc(O('feedSub'))}</span></div><div class="feed">${feed || `<div class="mini">${esc(O('feedEmpty', '기록 없음'))}</div>`}</div></div>
 
       <div class="panel tight sp3 ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('growthTitle'))}</h3><span class="ps">${esc(OT('growthSub', { target: fmt(prog.target) }))} ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 372, vbH: 418 })}
         <div class="clegend"><span><i style="background:#C0392B"></i>${esc(O('growthLgCum', '누적 연속'))}</span><span style="color:#8B2E1F">✕ ${esc(O('growthLgReset', '리셋'))}</span><span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> ${esc(O('growthLgTarget', '목표'))}</span></div></div>
@@ -862,6 +894,31 @@ function applyShellText() {
   set('foot-brand', 'textContent', T('app.footBrand'));
   set('modal-title', 'textContent', T('modal.title'));
   const nav = $('nav'); if (nav) nav.innerHTML = buildNav();
+  const sg = $('side-goals'); if (sg) sg.innerHTML = buildSideGoals();
+}
+
+/* '업무 목표' 데이터 모델 — config.json ui.goals 의 자유 텍스트 + 날짜 자동 태그.
+   빌드 불필요: config.json 만 고치고 새로고침하면 반영된다.
+   날짜(이번 달=M월 / 이번 주=M/D–M/D)는 평가일(generatedAt) 기준으로 자동 계산. */
+function goalsModel() {
+  const ref = (DATA && DATA.generatedAt) ? parseYMD(DATA.generatedAt.slice(0, 10)) : new Date();
+  const mon = new Date(ref); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));   // 그 주의 월요일
+  const sun = new Date(mon); sun.setDate(sun.getDate() + 6);                          // 일요일
+  return {
+    title: T('goals.title', '업무 목표'),
+    monthLabel: T('goals.monthLabel', '이번 달'), monthTag: `${ref.getMonth() + 1}월`, month: T('goals.month'),
+    weekLabel: T('goals.weekLabel', '이번 주'), weekTag: `${fmtMD(mon)}–${fmtMD(sun)}`, week: T('goals.week'),
+  };
+}
+const goalsNl = s => esc(s).replace(/\n/g, '<br>');   // 줄바꿈(\n) → <br>
+
+/* 좌측 사이드바 '업무 목표' 카드 (세로 나열). month/week 둘 다 비면 카드 숨김. */
+function buildSideGoals() {
+  const g = goalsModel();
+  const row = (label, tag, txt) => txt
+    ? `<div class="sg-item"><span class="sg-lbl">${esc(label)} <span class="sg-date">(${esc(tag)})</span></span><p>${goalsNl(txt)}</p></div>` : '';
+  const rows = row(g.monthLabel, g.monthTag, g.month) + row(g.weekLabel, g.weekTag, g.week);
+  return rows ? `<div class="sg-title">${esc(g.title)}</div>${rows}` : '';
 }
 
 /* ── 단일 섹션 뷰: 탭을 누르면 그 내용만 표시 (보고용) ──

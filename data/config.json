@@ -17,7 +17,9 @@
     "recurrenceLimit": 0,
     "verifyCycle": 200,
     "criticalOpenLimit": 0,
-    "errRateTargetPct": 5
+    "errRateTargetPct": 5,
+    "successRateTargetPct": 95,
+    "successRateWarnPct": 85
   },
   "lifecycle": [
     {
@@ -136,6 +138,14 @@
       "refGroup": "참고",
       "info": "프로젝트 정보"
     },
+    "_goals_readme": "아래 goals 블록은 좌측 사이드바 '업무 목표' 메모입니다. 여기 텍스트만 고치고 새로고침하면 바로 반영됩니다(재빌드 불필요). 여러 줄은 \\n 으로 줄바꿈하세요. month/week 텍스트를 비우면(\"\") 그 줄은 숨겨지고, 둘 다 비우면 카드 전체가 사라집니다.",
+    "goals": {
+      "title": "업무 목표",
+      "monthLabel": "이번 달",
+      "month": "7월: 라인 안정화 + 무고장 200Cy 확보\\n비전 파라미터 표준값 확정",
+      "weekLabel": "이번 주",
+      "week": "그리퍼 압력 재캘리브레이션 검증 마무리\\nERR-002 재발 여부 모니터링"
+    },
     "_overview_readme": "아래 overview 블록은 '한눈에 보기(관제)' 화면 전용 글자입니다. 여기만 고치면 새로고침 시 바로 반영됩니다(재빌드 불필요). {중괄호}는 자동으로 채워지는 값이니 그대로 두세요. <b>..</b> 태그는 강조이므로 유지하면 됩니다. 상세 보기 글자는 status/summary/steps/info 블록에서 수정합니다.",
     "overview": {
       "tag": "관제",
@@ -233,6 +243,17 @@
       "stageTitle": "개발 진행 단계",
       "stageCurrentPrefix": "현재: ",
       "stageSub": "DEVELOPMENT STAGE · 전체 {n}단계 중 현재 위치",
+      "_discuss_readme": "협의 및 논의 필요 박스입니다. 여기 discussItems 배열만 고치고 새로고침하면 반영됩니다(재빌드 불필요). 각 항목은 topic(제목), detail(부연·선택), tag(선택: 긴급/검토/협의/완료/보류 중 하나 → 색상 자동)로 구성. 항목을 늘리거나 줄이면 됩니다.",
+      "discussTitle": "협의 및 논의 필요",
+      "discussSub": "TO BE DISCUSSED · 업체·유관부서 확정 필요",
+      "discussBadge": "{n}건",
+      "discussEmpty": "논의 필요 항목 없음",
+      "discussItems": [
+        { "topic": "비전 조명(LUX) 기준 확정", "detail": "조도 변화 구간 노출값 표준화 — 업체 협의", "tag": "긴급" },
+        { "topic": "그리퍼 압력 셋포인트", "detail": "부품별 그립 압력 범위 재검토", "tag": "검토" },
+        { "topic": "무고장 시험 구간 정의", "detail": "200Cy 연속 기준 삼성·업체 합의", "tag": "협의" },
+        { "topic": "에러코드 마스터 추가(ERR-004~005)", "detail": "코드마스터 미정의 코드 등록 필요", "tag": "검토" }
+      ],
       "lineTitle": "설비 평가 진행 (라인 레이아웃)",
       "lineBadge": "📷 {n}설비 순차",
       "lineSub": "SEQUENTIAL STATION TEST",

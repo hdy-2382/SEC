@@ -27,6 +27,14 @@
   .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
   .nav a.active{background:linear-gradient(90deg,rgba(46,137,214,.28),rgba(46,137,214,.10));color:#fff;box-shadow:inset 2px 0 0 #2E89D6}
   .nav a.active .st{background:#2E89D6;color:#fff}
+  /* 좌측 사이드바 '업무 목표' 메모 카드 (config.json ui.goals) */
+  .sgoals{margin:12px 12px 0;padding:13px 13px 14px;background:linear-gradient(180deg,rgba(46,137,214,.20),rgba(46,137,214,.08));border:1px solid rgba(95,176,236,.38);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+  .sgoals .sg-title{font-size:12px;letter-spacing:.08em;text-align:center;color:#eaf3fc;font-weight:800;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .sgoals .sg-item{margin-bottom:11px}.sgoals .sg-item:last-child{margin-bottom:0}
+  .sgoals .sg-lbl{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#fff;margin-bottom:5px}
+  .sgoals .sg-lbl::before{content:"";width:4px;height:13px;border-radius:2px;background:#5fb0ec;flex:none}
+  .sgoals .sg-lbl .sg-date{font-size:11px;font-weight:600;color:#a9c4de;background:rgba(255,255,255,.08);padding:1px 7px;border-radius:20px}
+  .sgoals .sg-item p{margin:0 0 0 10px;font-size:11.5px;line-height:1.5;color:#cdd9ea;white-space:normal}
   .side .foot{margin-top:auto;padding:14px 20px 2px;font-size:11.5px;color:#7f93b0}.side .foot .dot{color:#46d07f}
   /* '상세 보기' 접이식 하위 탭 그룹 */
   .nav-collapse{display:flex;flex-direction:column;gap:2px;overflow:hidden;max-height:600px;transition:max-height .22s ease;
@@ -133,6 +141,25 @@
   .sw-2col{display:grid;grid-template-columns:3fr 1fr;gap:14px;align-items:stretch;margin-top:8px}
   .sw-2col .mods{grid-template-columns:1fr;gap:6px}
   .sw-2col .mod{font-size:11px;gap:6px}.sw-2col .mod .bar{width:30px}.sw-2col .mod .pc{width:30px}
+  /* 협의 및 논의 필요 — 가운데 정렬 카드가 늘어날수록 감싸지며(wrap) 배치 */
+  .disc-list{list-style:none;margin:10px 0 2px;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+  .disc-it{flex:0 1 210px;max-width:260px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;
+    padding:12px 14px 13px;background:var(--bg-soft,#f7fafd);border:1px solid var(--line-soft,#e3ebf3);border-top:3px solid #94a6bb;border-radius:11px;box-shadow:0 1px 4px rgba(20,51,92,.05)}
+  .disc-t{font-size:12.5px;font-weight:800;color:var(--ink);line-height:1.35}
+  .disc-d{font-size:11px;line-height:1.45;color:var(--ink-soft)}
+  .disc-tag{font-size:10px;font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap}
+  .disc-tag.t-urgent{background:#fde7e7;color:#c0392b}.disc-it:has(.t-urgent){border-top-color:#c0392b}
+  .disc-tag.t-review{background:#fdf1dc;color:#b9770e}.disc-it:has(.t-review){border-top-color:#e0921a}
+  .disc-tag.t-discuss{background:#e4f0fb;color:#1a5a9e}.disc-it:has(.t-discuss){border-top-color:#2E89D6}
+  .disc-tag.t-done{background:#e3f5ea;color:#1f8a4c}.disc-it:has(.t-done){border-top-color:#2ba35e}
+  .disc-tag.t-hold{background:#eceff3;color:#5a6b7e}.disc-it:has(.t-hold){border-top-color:#94a6bb}
+  .disc-empty{list-style:none;padding:16px 0;text-align:center;color:var(--muted);font-size:12px}
+  /* 한눈에 보기용 심플 리스트 (SW 완성도 .mod 본문과 동일한 크기·평범한 행) */
+  .ov-disc{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .ov-disc .ovd-it{display:flex;align-items:center;gap:8px;font-size:12px}
+  .ov-disc .ovd-t{flex:1;min-width:0;color:var(--ink);line-height:1.4}
+  .ov-disc .ovd-it .disc-tag{flex:none;order:2}
+  .ov-disc .ovd-empty{list-style:none;padding:14px 0;text-align:center;color:var(--muted);font-size:12px}
   /* 설비평가·SW 칸: 패널 크기는 고정, 사진만 칸 안에서 채움(오토스케일) */
   .status-grid{align-items:stretch}
   .status-grid>.panel{display:flex;flex-direction:column}
@@ -205,6 +232,12 @@
   .matrix .cell{height:50px;border-radius:8px;display:flex;align-items:center;justify-content:center}
   .m-h{background:#d9624f}.m-m{background:#e6a653}.m-l{background:#79b58b}
   .matrix .pt{width:21px;height:21px;border-radius:50%;background:rgba(255,255,255,.92);color:#222;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  /* 한눈에 보기 위험 매트릭스: 9칸 폭·높이 축소해 박스 슬림화 (steps 화면은 그대로) */
+  .ovmx .matrix{grid-template-columns:38px repeat(3,1fr);gap:5px;font-size:11px}
+  .ovmx .matrix .cell{height:40px;border-radius:7px}
+  .ovmx .matrix .pt{width:18px;height:18px;font-size:10px}
+  .ovmx .ovmx-row{flex-wrap:wrap}
+  .ovmx .ovmx-side{margin-left:auto}
   .legend-row{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:10px;font-size:10.5px;color:var(--ink-soft)}
   .legend-row span b{display:inline-flex;width:15px;height:15px;border-radius:50%;background:var(--navy);color:#fff;align-items:center;justify-content:center;font-size:9px;margin-right:4px}
   .stat-big{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.stat-big b{font-size:26px;font-weight:800;color:var(--navy-deep)}.stat-big span{font-size:12px;color:var(--muted)}
@@ -291,7 +324,7 @@
   .chk .nm{flex:1;color:var(--ink-soft)}
   .chk .vv{font-weight:800;color:var(--navy-deep)}
   /* lifecycle 미니 스트립 */
-  .lcmini{display:flex;gap:6px}
+  .lcmini{display:flex;gap:6px}.lcmini.wrap{flex-wrap:wrap}.lcmini.wrap .lcm{flex:1 1 44px;min-width:44px}
   .lcm{flex:1;text-align:center;padding:7px 6px;border-radius:9px;border:1px solid var(--line-soft);background:var(--card-alt)}
   .lcm.done{background:var(--green-soft);border-color:#bfe0cc}
   .lcm.cur{background:var(--sky-soft);border-color:#bcd9f3;box-shadow:inset 0 0 0 1px var(--sky)}

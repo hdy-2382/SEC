@@ -600,14 +600,15 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
     error_limit = acc.get("errorLimit", config.get("project", {}).get("errorLimit", 3))
     attempt_start = 0          # 현재 시도가 시작된 누적 Cycle
     budget_used = 0            # 현재 시도의 누적 에러 (0~error_limit)
-    budget_resets = 0          # 버짓 초과로 시도가 리셋된 횟수
+    reset_cycles = []          # 버짓 초과로 시도가 리셋된 누적 Cycle 위치들
     for c in err_cycles:                       # 일일평가 세그먼트에서 산출한 에러 위치
         if budget_used + 1 > error_limit:      # 다음 에러가 한도 초과 → 시도 실패·리셋
-            budget_resets += 1
+            reset_cycles.append(c)
             attempt_start = c                  # 이 에러 지점부터 새 시도 (이 에러는 실패로 소진)
             budget_used = 0
         else:
             budget_used += 1
+    budget_resets = len(reset_cycles)          # 버짓 초과로 시도가 리셋된 횟수
     attempt_cycles = max(0, cum_total - attempt_start)   # 현재 시도 진행 Cycle
 
     # 주차별 누적연속 + 안정성(에러율↓/MTBF↑)
@@ -630,13 +631,20 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
     weekly_list = []
     run_t = run_e = run_f = 0
     for i, (key, w) in enumerate(sorted(weekly.items()), start=1):
+        prev_t = run_t                                        # 주 시작 시점 누적 Cycle
         run_t += w["total"]; run_e += w["errors"]; run_f += fail_wk.get(key, 0)
+        # cumStreak = '현재 시도 진행 Cycle'(버짓 기준). 진행률 헤드라인(progress.cum)과
+        # 동일한 리셋 모델을 써서 주 끝 시점 값을 산출한다 → 최신 주 = attempt_cycles 로 일치.
+        wk_start = max((rc for rc in reset_cycles if rc <= run_t), default=0)
+        cum_attempt = max(0, run_t - wk_start)
+        reset_in_week = any(prev_t < rc <= run_t for rc in reset_cycles)  # 이 주에 버짓 리셋 발생?
         try:
             week_start = date.fromisocalendar(key[0], key[1], 1).isoformat()
         except Exception:
             week_start = ""
         weekly_list.append({
-            "week": f"W{i}", "weekStart": week_start, "cumStreak": w["lastStreak"],
+            "week": f"W{i}", "weekStart": week_start, "cumStreak": cum_attempt,
+            "reset": reset_in_week,
             "weekSuccess": max(0, w["total"] - w["errors"]), "errors": w["errors"],
             "errRate": round(run_e / run_t * 100, 1) if run_t else 0,
             "mtbf": round(run_t / run_f) if run_f else run_t,

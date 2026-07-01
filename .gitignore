@@ -16,6 +16,7 @@ venv/
 ~$*.xlsx
 *.xlsx.bak
 *.xlsx.orig
+.~lock.*#
 
 # Node (혹시 모를 도구 사용 시)
 node_modules/
