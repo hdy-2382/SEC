@@ -874,17 +874,54 @@ function initRouter() {
 }
 
 /* ── 마운트 ── */
-function mount() {
+/* ── 월 선택(누적 스냅샷) ── */
+let CUR_MONTH = null;   // null = 전체(최신)
+let FULL = null;        // 전체 계산 블록 백업(전체 복원용)
+const SNAP_KEYS = ['metrics', 'failure', 'actions', 'recurrence', 'acceptance', 'opReliability', 'daily', 'errors'];
+
+// 선택 월의 스냅샷(처음~그 달 말)을 DATA에 적용. null=전체(FULL 복원).
+function applyMonth(mo) {
+  const S = (mo && DATA.snapshots && DATA.snapshots[mo]) ? DATA.snapshots[mo] : FULL;
+  if (S) SNAP_KEYS.forEach(k => { if (S[k] !== undefined) DATA[k] = S[k]; });
+}
+
+// 사이드바 하단 월 선택 박스(데이터에 존재하는 월만 + 전체)
+function buildMonthSelector() {
+  const months = DATA.months || [];
+  if (!months.length) return '';
+  const btn = (val, txt, on) => `<button class="mo-btn${on ? ' active' : ''}" onclick="selectMonth(${val === null ? 'null' : `'${val}'`})">${esc(txt)}</button>`;
+  const mLabel = mo => parseInt(mo.slice(5), 10) + '월';
+  let h = `<div class="mo-title">${esc(T('overview.monthTitle', '기준 월 (누적)'))}</div><div class="mo-grid">`;
+  h += btn(null, T('overview.monthAll', '전체'), CUR_MONTH === null);
+  months.forEach(mo => { h += btn(mo, mLabel(mo), CUR_MONTH === mo); });
+  return h + `</div>`;
+}
+
+// 데이터-의존 영역만 재렌더(월 전환 시 재호출) — nav/핸들러는 유지
+function renderData() {
   const C = DATA.config || {}, m = DATA.metrics, f = DATA.failure, acc = DATA.acceptance, op = DATA.opReliability;
+  { const el = $('side-line'); if (el) el.innerHTML = lineLayoutFigure(C, m); }
+  { const el = $('side-months'); if (el) el.innerHTML = buildMonthSelector(); }
+  $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
+  $('s-steps').innerHTML = renderSteps(C, m, f, acc, op);
+}
+
+function selectMonth(mo) {
+  CUR_MONTH = mo;
+  applyMonth(mo);
+  renderData();
+  scrollTo(0, 0);
+}
+
+function mount() {
+  const C = DATA.config || {};
+  FULL = {}; SNAP_KEYS.forEach(k => { FULL[k] = DATA[k]; });
   applyShellText();
   const evalDate = DATA.generatedAt ? DATA.generatedAt.slice(0, 10) : '—';
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
   { const el = $('topbar-lc'); if (el) el.innerHTML = buildTopbarLc(C); }
   { const fu = $('foot-updated'); if (fu) fu.textContent = T('app.updatedPrefix') + evalDate; }
-  { const el = $('side-line'); if (el) el.innerHTML = lineLayoutFigure(C, m); }
-  $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
-  $('s-steps').innerHTML = renderSteps(C, m, f, acc, op);
-
+  renderData();
   initRouter();   // 탭 = 해당 섹션만 표시 (단일 섹션 뷰). 인쇄 시에는 전체 펼침.
 }
 

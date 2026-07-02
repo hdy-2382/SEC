@@ -899,6 +899,18 @@ def main():
     now = datetime.now(timezone.utc)
     computed = _compute(daily, errors, config, codes, actions, now=now)
 
+    # ── 월별 누적 스냅샷: 처음 ~ 각 달 말까지의 daily/errors로 재계산 ──
+    #    프론트에서 월 선택 시 해당 스냅샷으로 교체 렌더한다.
+    def _month(x):
+        return (x.get("date") or "")[:7]
+    months = sorted({_month(x) for x in daily if _month(x)})
+    snapshots = {}
+    for mo in months:
+        dM = [x for x in daily  if _month(x) and _month(x) <= mo]
+        eM = [x for x in errors if (not _month(x)) or _month(x) <= mo]
+        cM = _compute(dM, eM, config, codes, actions, now=now)
+        snapshots[mo] = {**cM, "daily": dM, "errors": eM}
+
     out = {
         "generatedAt": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source":      src.name,
@@ -907,6 +919,8 @@ def main():
         "daily":       daily,
         "errors":      errors,
         **computed,
+        "months":      months,
+        "snapshots":   snapshots,
     }
     OUT_PATH.write_text(
         json.dumps(out, ensure_ascii=False, indent=2),

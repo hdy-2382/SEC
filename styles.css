@@ -45,6 +45,13 @@
   .side #side-line .layout-img{height:120px!important;border-radius:8px 8px 0 0}
   .side #side-line .layout-cap{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);color:#cdd9ea;font-size:10.5px;line-height:1.4;padding:7px 9px}
   .side #side-line .layout-cap b{color:#5fb0ec}
+  /* 사이드바 하단 월 선택(누적 스냅샷) */
+  .side #side-months{margin:14px 12px 0}
+  .side #side-months .mo-title{font-size:11px;letter-spacing:.06em;color:#a9c4de;font-weight:800;margin-bottom:8px;padding-left:2px}
+  .side #side-months .mo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+  .side #side-months .mo-btn{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#cdd9ea;border-radius:8px;padding:7px 4px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .side #side-months .mo-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+  .side #side-months .mo-btn.active{background:linear-gradient(135deg,#2E89D6,#5fb0ec);border-color:#5fb0ec;color:#fff}
   .side .foot{margin-top:auto;padding:14px 20px 2px;font-size:11.5px;color:#7f93b0}.side .foot .dot{color:#46d07f}
   /* '상세 보기' 접이식 하위 탭 그룹 */
   .nav-collapse{display:flex;flex-direction:column;gap:2px;overflow:hidden;max-height:600px;transition:max-height .22s ease;
@@ -163,7 +170,7 @@
   .sw-col{min-width:0}
   .sw-col-h{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;font-weight:800;color:var(--navy-deep);letter-spacing:.02em;padding-bottom:6px;margin-bottom:7px;border-bottom:1px solid var(--line-soft)}
   .sw-col-h span{font-weight:700;color:var(--muted);background:var(--card-alt);padding:0 6px;border-radius:20px;font-size:9.5px}
-  .sw-col-body{display:flex;flex-direction:column;gap:7px;max-height:230px;overflow-y:auto;padding-right:2px}
+  .sw-col-body{display:flex;flex-direction:column;gap:7px;max-height:150px;overflow-y:auto;padding-right:2px}
   .sw-col .mod{font-size:11px;gap:6px}.sw-col .mod .bar{width:38px}.sw-col .mod .pc{width:30px;font-size:10px}
   /* 설비평가: 사진(위) + 캡션(아래) 분리. 높이는 inline style(config)로 지정 */
   .layout-figure{display:flex;flex-direction:column}
@@ -372,7 +379,7 @@
   .prog-track .rel-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
   /* 하단 전체폭 트랙 (고장 분석 / 개발 현황) */
   .prog-track.track-wide{margin-bottom:18px}
-  .prog-track .fault-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch}
+  .prog-track .fault-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
   .prog-track .dev-grid{display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:stretch}
   @media(max-width:1180px){.prog-track .fault-grid{grid-template-columns:1fr}.prog-track .dev-grid{grid-template-columns:1fr}.dev-2col{grid-template-columns:1fr}}
   /* 오버뷰 본문 텍스트 확대 (넓은 화면 가시성 — 상세 탭엔 영향 없음) */
