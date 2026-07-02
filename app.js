@@ -876,7 +876,9 @@ function renderOverview(C, m, f, acc, op) {
     </div></div>`;
 
   return `
+    <div class="tb-lc ov-lc">${buildTopbarLc(C)}</div>
     <div class="ov-2col">
+      <div class="prog-track tk-goals"><div class="pt-h">📋 ${esc(O('trkGoalsLabel', '업무 목표 · 설비 평가 진행'))}</div><div class="sgoals">${buildSideGoals()}</div>${lineLayoutFigure(C, m)}</div>
       <div class="prog-track tk-a"><div class="pt-h">🎯 ${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>${kProgBox}${pGrowth}</div>
       <div class="prog-track tk-b"><div class="pt-h">🛡 ${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}<span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
     </div>
@@ -986,7 +988,6 @@ function applyShellText() {
   set('foot-brand', 'textContent', T('app.footBrand'));
   set('modal-title', 'textContent', T('modal.title'));
   const nav = $('nav'); if (nav) nav.innerHTML = buildNav();
-  const sg = $('side-goals'); if (sg) sg.innerHTML = buildSideGoals();
 }
 
 /* '업무 목표' 데이터 모델 — config.json ui.goals 의 자유 텍스트 + 날짜 자동 태그.
@@ -1029,7 +1030,7 @@ function showOnly(href) {
     document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = (!isStep || s.id === id) ? '' : 'none'; });
   }
   document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === href));
-  const tbLc = $('topbar-lc'); if (tbLc) tbLc.style.display = (href === '#s-overview') ? '' : 'none';  // 개발단계는 한눈에 보기에서만
+  const tbLc = $('topbar-lc'); if (tbLc) tbLc.style.display = 'none';  // 개발단계 스텝퍼는 한눈에 보기 콘텐츠(ov-lc)로 이동
   setDetailCollapsed(href === '#s-overview');   // 한눈에 보기면 접고, 상세/개별 탭이면 펼침
   activeHref = href;
   scrollTo(0, 0);
@@ -1062,7 +1063,6 @@ function mount() {
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
   { const el = $('topbar-lc'); if (el) el.innerHTML = buildTopbarLc(C); }
   { const fu = $('foot-updated'); if (fu) fu.textContent = T('app.updatedPrefix') + evalDate; }
-  { const el = $('side-line'); if (el) el.innerHTML = lineLayoutFigure(C, m); }
   $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
   $('s-status').innerHTML = renderStatus(C, m);
   $('s0').innerHTML = renderSummary(C, m, acc, op);
