@@ -187,6 +187,7 @@
       "gateDone": "달성",
       "gateProg": "진행 중",
       "gateGoal": "계약 게이트 · 연속 <b>{target} Cycle</b> 완주 · 에러 <b>{limit}회</b>까지 허용(초과 시 리셋)",
+      "gateShort": "계약 · 연속 {target}Cy · 에러 {limit}회",
       "gateRemain": "남은 <b>{n}</b> Cycle",
       "gateBudget": "Error Budget",
       "_box_overview_04": "───── 04 신뢰성 입증 통합 박스 (결함·품질 3도넛 + 신뢰성 입증 2도넛 + 검증종결 칩 + 운용등급) ─────",

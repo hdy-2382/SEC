@@ -43,10 +43,10 @@ function miniDonut(pct, color, center, label, sub, size = 72) {
     <svg width="${size}" height="${size}" viewBox="0 0 42 42" style="display:block;margin:0 auto">
       <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--line-soft)" stroke-width="4.5"/>
       <circle cx="21" cy="21" r="15.9" fill="none" stroke="${color}" stroke-width="4.5" stroke-dasharray="${pct} ${100 - pct}" stroke-dashoffset="25" stroke-linecap="round"/>
-      <text x="21" y="21" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="800" fill="var(--navy-deep)">${esc(center)}</text>
+      <text x="21" y="21" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="800" fill="var(--navy-deep)">${esc(center)}</text>
     </svg>
-    <div style="font-size:11.5px;font-weight:700;color:var(--navy-deep);margin-top:5px">${esc(label)}</div>
-    <div style="font-size:10px;color:var(--muted)">${esc(sub)}</div>
+    <div style="font-size:12.5px;font-weight:700;color:var(--navy-deep);margin-top:6px">${esc(label)}</div>
+    <div style="font-size:10.5px;color:var(--muted);margin-top:1px">${esc(sub)}</div>
   </div>`;
 }
 function sevDonut(sd) {
@@ -185,9 +185,10 @@ function lineChart(series, target) {
   const tl = target ? `<line x1="${left}" y1="${y(target)}" x2="${right}" y2="${y(target)}" stroke="#E08600" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${right - 4}" y="${y(target) - 5}" font-size="11.5" fill="#E08600" text-anchor="end">${esc(TT('steps.chartTargetLabel', { v: target }))}</text>` : '';
   return `<svg viewBox="0 0 420 176" style="width:100%;height:auto;display:block">${yaxis}<line x1="${left}" y1="${top}" x2="${left}" y2="${bot}" stroke="#C9DCEC"/>${tl}<polyline fill="none" stroke="#2E89D6" stroke-width="2.5" points="${pts}"/>${dots}${xaxis}</svg>`;
 }
-function stabChart(weekly) {
+function stabChart(weekly, opt) {
   // 듀얼 축: 좌=이동 에러율(%, 빨강), 우=누적 MTBF(Cycle, 파랑)
-  const top = 16, bot = 150, left = 44, right = 376;
+  opt = opt || {};
+  const top = 16, bot = opt.bot || 150, left = 44, right = 376, vbH = opt.vbH || 176;
   const errs = weekly.map(w => w.errRate), mt = weekly.map(w => w.mtbf);
   const n = weekly.length || 1;
   const x = i => n === 1 ? (left + right) / 2 : left + (right - left) * i / (n - 1);
@@ -209,7 +210,7 @@ function stabChart(weekly) {
   const pm = mt.map((v, i) => `${x(i)},${yR(v)}`).join(' ');
   const ed = errs.map((v, i) => `<circle cx="${x(i)}" cy="${yL(v)}" r="3" fill="#8B2E1F"/>`).join('');
   const md = mt.map((v, i) => `<circle cx="${x(i)}" cy="${yR(v)}" r="3" fill="#2E89D6"/>`).join('');
-  return `<svg viewBox="0 0 420 176" style="width:100%;height:auto;display:block">${axis}
+  return `<svg viewBox="0 0 420 ${vbH}" style="width:100%;height:auto;display:block">${axis}
     <line x1="${left}" y1="${top}" x2="${left}" y2="${bot}" stroke="#C9DCEC"/><line x1="${right}" y1="${top}" x2="${right}" y2="${bot}" stroke="#C9DCEC"/>
     <polyline fill="none" stroke="#8B2E1F" stroke-width="2.4" points="${pe}"/>${ed}
     <polyline fill="none" stroke="#2E89D6" stroke-width="2.4" points="${pm}"/>${md}${xaxis}</svg>`;
@@ -758,7 +759,7 @@ function renderOverview(C, m, f, acc, op) {
   const progCls = progPct >= pgGo ? 'k-go' : progPct >= pgWarn ? 'k-warn' : 'k-bad';
   const progDonut = `<div class="pg-donut"><svg viewBox="0 0 42 42"><circle class="trk" cx="21" cy="21" r="15.9"/><circle class="arc" cx="21" cy="21" r="15.9" style="stroke:${SC[progCls]}" stroke-dasharray="${Math.min(100, progPct)} ${100 - Math.min(100, progPct)}" stroke-dashoffset="25"/></svg><div class="pg-donut-ctr"><b>${progPct}%</b></div></div>`;
   const kProgBox = `<div class="kgroup kg-prog"><div class="kg-h">${GRP[0].icon} ${esc(GRP[0].title)}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>
-    <div class="pg-subh">${esc(GRP[0].a.label)}</div>
+    <div class="pg-subh"><span>${esc(GRP[0].a.label)}</span><span class="pg-subh-note">${esc(OT('gateShort', { target: fmt(prog.target), limit: errLimit }, '계약 · 연속 {target}Cy · 에러 {limit}회'))}</span></div>
     <div class="pg-hero">
       <div class="pg-hero-main">
         <div class="pg-num"><b>${fmt(prog.cum)}</b><span>/ ${fmt(prog.target)} Cy</span></div>
@@ -772,8 +773,7 @@ function renderOverview(C, m, f, acc, op) {
         <div class="pg-mini"><i style="width:${Math.min(100, succ)}%;background:${succClr}"></i></div><span class="pg-stat-s">${esc(GRP[0].b.sub)}</span></div>
       <div class="pg-stat"><span class="pg-stat-k">${esc(O('gateBudget', 'Error Budget'))} <b>${eb.used}/${eb.limit}</b></span>
         <div class="blocks" style="margin:9px 0 6px">${ebBlocks}</div><span class="pg-stat-s">${esc(ebudNote)}</span></div>
-    </div>
-    <div class="pg-foot">${OT('gateGoal', { target: fmt(prog.target), limit: errLimit })}</div></div>`;
+    </div></div>`;
 
   // lifecycle 미니
   const lcStat = { done: O('lcDone', '완료'), current: O('lcCurrent', '진행 중'), todo: O('lcTodo', '예정') };
@@ -827,7 +827,7 @@ function renderOverview(C, m, f, acc, op) {
       <td class="c">${(conf.currentCycles || 0) >= t.required ? '<span class="badge b-ok">달성</span>' : '+' + (t.required - (conf.currentCycles || 0))}</td></tr>`).join('');
 
   // 왼쪽 통합 트랙에 들어갈 성장추이 패널 (span 없이 트랙 폭 전체)
-  const pGrowth = `<div class="panel tight ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('growthTitle'))}</h3><span class="ps">${esc(OT('growthSub', { target: fmt(prog.target) }))} ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 372, vbH: 418 })}
+  const pGrowth = `<div class="panel tight ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('growthTitle'))}</h3><span class="ps">${esc(OT('growthSub', { target: fmt(prog.target) }))} ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 420, vbH: 470 })}
     <div class="clegend"><span><i style="background:#C0392B"></i>${esc(O('growthLgCum', '누적 연속'))}</span><span style="color:#8B2E1F">✕ ${esc(O('growthLgReset', '리셋'))}</span><span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> ${esc(O('growthLgTarget', '목표'))}</span></div></div>`;
   // 오른쪽 나머지 패널들 (2-up = sp6)
   const pDiscuss = `<div class="panel tight sp6"><div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="ps" style="margin-left:auto">${esc(TT('status.discussBadge', { n: ovDiscuss.count }, '{n}건'))}</span></div><div class="sw-cols">${discCols}</div></div>`;
@@ -845,19 +845,19 @@ function renderOverview(C, m, f, acc, op) {
   const pTop5 = `<div class="panel tight sp4"><div class="ph"><h3>${esc(O('top5Title'))}</h3><span class="ps">${esc(O('top5Sub'))}</span></div>
     <table><tr>${(O('top5H', ['코드', '유형', '건수', '등급', '재발'])).map((h, i) => i >= 2 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>`;
   const pFeed = `<div class="panel tight sp4"><div class="ph"><h3>${esc(O('feedTitle'))}</h3><span class="ps">${esc(O('feedSub'))}</span></div><div class="feed">${feed || `<div class="mini">${esc(O('feedEmpty', '기록 없음'))}</div>`}</div></div>`;
-  const pStab = `<div class="panel tight sp6 ovchart" onclick="openChart('stab')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('stabTitle'))}</h3><span class="ps">${esc(O('stabSub'))} ⤢</span></div>${stabChart(m.weekly || [])}
+  const pStab = `<div class="panel tight sp6 ovchart" onclick="openChart('stab')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('stabTitle'))}</h3><span class="ps">${esc(O('stabSub'))} ⤢</span></div>${stabChart(m.weekly || [], { bot: 186, vbH: 212 })}
     <div class="clegend"><span><i style="background:#8B2E1F"></i>${esc(O('stabLgErr', '에러율(좌%)'))}</span><span><i style="background:#2E89D6"></i>${esc(O('stabLgMtbf', 'MTBF(우)'))}</span></div></div>`;
-  const pErr = `<div class="panel tight sp6 ovchart" onclick="openChart('errrate')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('errTitle'))}</h3><span class="ps">${esc(O('errSub'))} ⤢</span></div>${errRateChart(m.errRate || [], { bot: 372, vbH: 418 })}
+  const pErr = `<div class="panel tight sp6 ovchart" onclick="openChart('errrate')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('errTitle'))}</h3><span class="ps">${esc(O('errSub'))} ⤢</span></div>${errRateChart(m.errRate || [], { bot: 420, vbH: 470 })}
     <div class="clegend"><span><i style="background:#E08600"></i>${esc(O('errLgRate', '기간 에러율'))}</span><span><i style="background:#8B2E1F"></i>${esc(O('errLgAvg', '누적 평균'))}</span></div></div>`;
 
   // 신뢰성 입증 통합 박스 — 에러·재발·신뢰성 KPI 4도넛 + 합격판정 칩(미해결Crit·검증종결) + 운용등급.
   // (에러·재발·신뢰성·운용신뢰도·양산사양합격 박스를 하나로 통합, 중복 지표 제거)
   const pfCls = c => c === 'k-go' ? 'pf-go' : c === 'k-bad' ? 'pf-bad' : 'pf-prog';
   const pfLabel = cls => cls === 'pf-go' ? O('stSuffice', '충족') : cls === 'pf-bad' ? O('stUnmet', '미달') : O('stProg', '진행');
-  const relDonut = k => { const p = pfCls(k.cls); return `<div class="rel-cell">${miniDonut(k.pct, SC[k.cls], k.disp + (k.unit === '%' ? '%' : ''), k.label, k.sub, 74)}<span class="pf ${p}">${esc(pfLabel(p))}</span></div>`; };
+  const relDonut = k => { const p = pfCls(k.cls); return `<div class="rel-cell">${miniDonut(k.pct, SC[k.cls], k.disp + (k.unit === '%' ? '%' : ''), k.label, k.sub, 90)}<span class="pf ${p}">${esc(pfLabel(p))}</span></div>`; };
   // 0이 목표라 게이지를 점진적으로 채울 수 없는 지표(에러율·재발·미해결) → 단계(신호등) 도넛:
   //   링을 상태색으로 꽉 채워 초록/주황/빨강 단계만 표시, 중앙=실제값.
-  const relStage = k => { const p = pfCls(k.cls); const fill = k.cls === 'k-bad' ? 33 : k.cls === 'k-warn' ? 67 : 100; return `<div class="rel-cell">${miniDonut(fill, SC[k.cls], k.disp + (k.unit === '%' ? '%' : ''), k.label, k.sub, 74)}<span class="pf ${p}">${esc(pfLabel(p))}</span></div>`; };
+  const relStage = k => { const p = pfCls(k.cls); const fill = k.cls === 'k-bad' ? 33 : k.cls === 'k-warn' ? 67 : 100; return `<div class="rel-cell">${miniDonut(fill, SC[k.cls], k.disp + (k.unit === '%' ? '%' : ''), k.label, k.sub, 90)}<span class="pf ${p}">${esc(pfLabel(p))}</span></div>`; };
   const critC = accCs.find(c => c.id === 'openCritical') || {};
   // 미해결 Critical 도넛 (0 목표 · 낮을수록 좋음 → 달성률 환산)
   const openC = op.openCritical || 0, critLimit = accept.criticalOpenLimit != null ? accept.criticalOpenLimit : 0;

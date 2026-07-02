@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T05:27:40Z",
+  "generatedAt": "2026-07-02T06:21:47Z",
   "source": "양산평가_샘플.xlsx",
   "config": {
     "project": {
@@ -222,6 +222,7 @@
         "gateDone": "달성",
         "gateProg": "진행 중",
         "gateGoal": "계약 게이트 · 연속 <b>{target} Cycle</b> 완주 · 에러 <b>{limit}회</b>까지 허용(초과 시 리셋)",
+        "gateShort": "계약 · 연속 {target}Cy · 에러 {limit}회",
         "gateRemain": "남은 <b>{n}</b> Cycle",
         "gateBudget": "Error Budget",
         "_box_overview_04": "───── 04 신뢰성 입증 통합 박스 (결함·품질 3도넛 + 신뢰성 입증 2도넛 + 검증종결 칩 + 운용등급) ─────",
@@ -231,6 +232,22 @@
         "relGrpReliab": "신뢰성 입증",
         "kpiOpenCrit": "미해결 Critical",
         "kpiOpenCritSub": "종결률 {rate}% · 목표 0",
+        "_donutBands_readme": "도넛 색(초록/주황/빨강) 경계입니다. 값만 고치고 새로고침하면 반영(재빌드 불필요). errRate/mtbf/conf 숫자 = '목표의 몇 배'. 에러율(낮을수록 좋음): 목표 초과~목표×badMult=주황, 그 이상=빨강. MTBF·신뢰수준(높을수록 좋음): 목표 미달~목표×warnMult=주황, 그 미만=빨강. progress(진행률 도넛) = 진행 %기준: goAt% 이상=초록, warnAt%~goAt%=주황, warnAt% 미만=빨강. (재발·미해결은 목표 0이라 0=초록·1건+=빨강 단계, 조절 대상 아님)",
+        "donutBands": {
+          "errRate": {
+            "badMult": 3
+          },
+          "mtbf": {
+            "warnMult": 0.5
+          },
+          "conf": {
+            "warnMult": 0.6
+          },
+          "progress": {
+            "warnAt": 33,
+            "goAt": 66
+          }
+        },
         "relClosedRate": "종결률 {rate}%",
         "opTitle": "운용 신뢰도",
         "_box_overview_06": "───── 06 개발 단계 (이 박스 글자는 여기서 수정) ─────",
