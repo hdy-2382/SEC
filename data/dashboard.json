@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-01T02:05:19Z",
+  "generatedAt": "2026-07-02T05:27:40Z",
   "source": "양산평가_샘플.xlsx",
   "config": {
     "project": {
@@ -81,41 +81,68 @@
         }
       ]
     },
+    "_swModules_readme": "group = 화면의 3열 분류(로봇/상위시스템/환경 중 하나). 열 이름/순서는 ui.overview.swGroups 에서 바꾼다. group 값을 바꾸면 해당 모듈이 그 열로 이동. (swModules 는 데이터라 수정 후 재빌드 필요)",
     "swModules": [
       {
         "name": "비전 인식",
-        "pct": 100
-      },
-      {
-        "name": "통신 / HMI",
-        "pct": 100
+        "pct": 100,
+        "group": "로봇"
       },
       {
         "name": "경로 계획",
-        "pct": 100
-      },
-      {
-        "name": "안전 인터록",
-        "pct": 100
+        "pct": 100,
+        "group": "로봇"
       },
       {
         "name": "그리퍼 제어",
-        "pct": 90
+        "pct": 90,
+        "group": "로봇"
       },
       {
         "name": "적재 로직",
-        "pct": 70
+        "pct": 70,
+        "group": "로봇"
+      },
+      {
+        "name": "통신 / HMI",
+        "pct": 100,
+        "group": "상위시스템"
       },
       {
         "name": "데이터 로깅",
-        "pct": 60
+        "pct": 60,
+        "group": "상위시스템"
       },
       {
         "name": "리포트 연동",
-        "pct": 30
+        "pct": 30,
+        "group": "상위시스템"
+      },
+      {
+        "name": "안전 인터록",
+        "pct": 100,
+        "group": "환경"
       }
     ],
     "_ui_readme": "아래 ui 블록의 모든 글자는 화면에 그대로 표시됩니다. 여기만 고치면 새로고침 시 바로 반영됩니다(재빌드 불필요). {중괄호}는 자동으로 채워지는 숫자/값이니 그대로 두세요. <b>..</b> 같은 태그는 강조 표시이므로 유지하면 됩니다. steps.targetCurve = 주차별 추이의 목표 곡선 모양: linear(선형)·quad(2차)·cubic(3차) 중 하나.",
+    "_edit_guide": {
+      "설명": "화면(탭)별 → 박스 순서로 정리돼 있습니다. 고칠 박스를 화면에서 찾고, 아래 표의 config 위치로 가면 됩니다. 각 블록 안에는 '_box_XX ─── 박스이름 ───' 구분선이 렌더 순서대로 들어 있어, 그 아래 글자들만 고치면 그 박스가 바뀝니다. (_box_/_readme/_로 시작하는 키는 안내용이라 화면에 표시되지 않습니다. 지워도 되고 그대로 둬도 됩니다.)",
+      "화면→config": {
+        "좌측 사이드바 업무목표": "ui.goals",
+        "상단 개발단계 스텝퍼": "ui.overview 06 (개발 단계) 라벨 + lifecycle 데이터",
+        "한눈에 보기(관제) 각 박스": "ui.overview  (_box_overview_01~11)",
+        "개발 현황 각 박스": "ui.status  (_box_status_01~06) · 협의항목=discussItems · 라인/SW사진=layout",
+        "평가 결과 요약 각 박스": "ui.summary  (_box_summary_01~08)",
+        "상세 6단계(STEP1~6)": "ui.steps  (_box_steps_STEP1~6)",
+        "프로젝트 정보": "ui.info  (_box_info_01~03)",
+        "에러 상세 모달": "ui.modal"
+      },
+      "값/판정이 자동인 것(글자만 config, 숫자는 데이터)": {
+        "합격기준 리스트": "순서·라벨=ui.acceptance.criteria / 값·판정=빌드 자동",
+        "협의 필요": "ui.status.discussItems (id/label/tag 자유편집, 재빌드 불필요)",
+        "숫자 기준값(360·MTBF100 등)": "최상위 acceptance 블록 → 고치면 재빌드 필요"
+      }
+    },
     "ui": {
       "app": {
         "title": "케미컬 체결/반송 자동화 시스템",
@@ -141,8 +168,17 @@
         "refGroup": "참고",
         "info": "프로젝트 정보"
       },
+      "_goals_readme": "아래 goals 블록은 좌측 사이드바 '업무 목표' 메모입니다. 여기 텍스트만 고치고 새로고침하면 바로 반영됩니다(재빌드 불필요). 여러 줄은 \\n 으로 줄바꿈하세요. month/week 텍스트를 비우면(\"\") 그 줄은 숨겨지고, 둘 다 비우면 카드 전체가 사라집니다.",
+      "goals": {
+        "title": "업무 목표",
+        "monthLabel": "이번 달",
+        "month": "7월: 라인 안정화 + 무고장 200Cy 확보\\n비전 파라미터 표준값 확정",
+        "weekLabel": "이번 주",
+        "week": "그리퍼 압력 재캘리브레이션 검증 마무리\\nERR-002 재발 여부 모니터링"
+      },
       "_overview_readme": "아래 overview 블록은 '한눈에 보기(관제)' 화면 전용 글자입니다. 여기만 고치면 새로고침 시 바로 반영됩니다(재빌드 불필요). {중괄호}는 자동으로 채워지는 값이니 그대로 두세요. <b>..</b> 태그는 강조이므로 유지하면 됩니다. 상세 보기 글자는 status/summary/steps/info 블록에서 수정합니다.",
       "overview": {
+        "_box_overview_01": "───── 01 헤더 · 제목/등급 (이 박스 글자는 여기서 수정) ─────",
         "tag": "관제",
         "title": "한눈에 보기 · 신뢰성 관제",
         "desc": "핵심 지표 한 화면 · 6단계 근거는 ‘상세 보기’",
@@ -150,6 +186,14 @@
         "stSuffice": "충족",
         "stUnmet": "미달",
         "stProg": "진행",
+        "_box_overview_02": "───── 02 KPI 스트립 (3그룹 × 2지표) (이 박스 글자는 여기서 수정) ─────",
+        "kgProgress": "평가 진행 · 성공",
+        "kgQuality": "에러 · 재발",
+        "kgReliability": "신뢰성 입증 (MTBF·신뢰수준)",
+        "trkProgLabel": "완주 진행 → 성장 · 연결된 지표",
+        "trkRelLabel": "신뢰성 입증 → 안정화 추세 · 연결된 지표",
+        "trkFaultLabel": "고장 분석 · 위험 매트릭스 · 빈발 · 최근 알람",
+        "trkDevLabel": "개발 현황 · 협의 · SW 완성도",
         "kpiProgress": "평가 진행률",
         "kpiProgressSub": "{cum}/{target} Cycle",
         "kpiProgressTag": "진행",
@@ -173,35 +217,49 @@
         "kpiConfSub": "목표 {lv}% · 무고장 {cyc}Cy",
         "kpiConfTagGo": "입증",
         "kpiConfTagProg": "진행",
+        "_box_overview_03": "───── 03 합격 게이트 (이 박스 글자는 여기서 수정) ─────",
         "gateTitle": "양산평가 합격 기준",
         "gateDone": "달성",
         "gateProg": "진행 중",
         "gateGoal": "계약 게이트 · 연속 <b>{target} Cycle</b> 완주 · 에러 <b>{limit}회</b>까지 허용(초과 시 리셋)",
         "gateRemain": "남은 <b>{n}</b> Cycle",
         "gateBudget": "Error Budget",
-        "specTitle": "양산사양 합격 기준",
-        "specSub": "총 {total}개 · {passed} 충족",
-        "opTitle": "운용 신뢰도 (대응)",
-        "opSub": "등급 {grade}",
-        "opDonClosed": "검증 종결",
-        "opDonClosedSub": "Critical·Major",
-        "opDonCrit": "미해결 Crit",
-        "opDonCritSub": "종료 시 0",
-        "opDonRecur": "재발",
-        "opDonRecurSub": "목표 0",
+        "_box_overview_04": "───── 04 신뢰성 입증 통합 박스 (결함·품질 3도넛 + 신뢰성 입증 2도넛 + 검증종결 칩 + 운용등급) ─────",
+        "relTitle": "신뢰성 입증",
+        "relSub": "결함·품질 · 신뢰성 입증",
+        "relGrpQuality": "결함 · 품질",
+        "relGrpReliab": "신뢰성 입증",
+        "kpiOpenCrit": "미해결 Critical",
+        "kpiOpenCritSub": "종결률 {rate}% · 목표 0",
+        "relClosedRate": "종결률 {rate}%",
+        "opTitle": "운용 신뢰도",
+        "_box_overview_06": "───── 06 개발 단계 (이 박스 글자는 여기서 수정) ─────",
         "lcTitle": "개발 단계",
         "lcSub": "전체 {n}단계 중 현재 위치",
         "lcDone": "완료",
         "lcCurrent": "진행 중",
         "lcTodo": "예정",
+        "_box_overview_07": "───── 07 SW 완성도 (이 박스 글자는 여기서 수정) ─────",
         "swTitle": "소프트웨어 완성도",
         "swSub": "🟢완료 🔵진행 🟠미흡",
+        "swGroups": [
+          "로봇",
+          "상위시스템",
+          "환경"
+        ],
+        "discGroups": [
+          "안전",
+          "운영",
+          "기타"
+        ],
+        "_box_overview_08": "───── 08 위험 매트릭스 (이 박스 글자는 여기서 수정) ─────",
         "matrixTitle": "위험 매트릭스 · 심각도 분포",
         "matrixSub": "S×O 우선순위 + 등급 분포",
         "matrixTotal": "총 고장",
         "occRare": "드묾",
         "occMid": "보통",
         "occHigh": "빈발",
+        "_box_overview_09": "───── 09 빈발 고장 Top5 (이 박스 글자는 여기서 수정) ─────",
         "top5Title": "빈발 고장 Top 5",
         "top5Sub": "등급·재발",
         "top5H": [
@@ -212,9 +270,11 @@
           "재발"
         ],
         "recurBadge": "재발",
+        "_box_overview_10": "───── 10 최근 알람/이벤트 (이 박스 글자는 여기서 수정) ─────",
         "feedTitle": "최근 알람 / 이벤트",
         "feedSub": "최신순",
         "feedEmpty": "기록 없음",
+        "_box_overview_11": "───── 11 차트 · 성장/MTBF/안정성/에러율 (이 박스 글자는 여기서 수정) ─────",
         "growthTitle": "주차별 연속 추이",
         "growthSub": "목표 0→{target} 곡선",
         "growthLgCum": "누적 연속",
@@ -238,12 +298,47 @@
         "noteEmpty": "— 메모"
       },
       "status": {
+        "_box_status_01": "───── 01 헤더 (이 박스 글자는 여기서 수정) ─────",
         "tag": "현황",
         "title": "📍 평가 대상 · 개발 현황",
         "desc": "상사 팔로업: 어느 단계 / 무엇을 테스트 / 무엇이 개발",
+        "_box_status_02": "───── 02 개발 진행 단계 (이 박스 글자는 여기서 수정) ─────",
         "stageTitle": "개발 진행 단계",
         "stageCurrentPrefix": "현재: ",
         "stageSub": "DEVELOPMENT STAGE · 전체 {n}단계 중 현재 위치",
+        "_box_status_03": "───── 03 협의 및 논의 필요 (이 박스 글자는 여기서 수정) ─────",
+        "_discuss_readme": "협의 및 논의 필요 박스입니다. 여기 discussItems 배열만 고치고 새로고침하면 반영됩니다(재빌드 불필요). 각 항목은 topic(제목), detail(부연·선택), tag(선택: 긴급/검토/협의/완료/보류 중 하나 → 색상 자동), group(한눈에 보기 3열 분류: 안전/운영/기타 중 하나 — 열 이름/순서는 ui.overview.discGroups)로 구성. 항목을 늘리거나 줄이면 됩니다.",
+        "discussTitle": "협의 및 논의 필요",
+        "discussSub": "TO BE DISCUSSED · 업체·유관부서 확정 필요",
+        "discussBadge": "{n}건",
+        "discussEmpty": "논의 필요 항목 없음",
+        "discussItems": [
+          {
+            "topic": "비전 조명(LUX) 기준 확정",
+            "detail": "조도 변화 구간 노출값 표준화 — 업체 협의",
+            "tag": "긴급",
+            "group": "운영"
+          },
+          {
+            "topic": "그리퍼 압력 셋포인트",
+            "detail": "부품별 그립 압력 범위 재검토",
+            "tag": "검토",
+            "group": "안전"
+          },
+          {
+            "topic": "무고장 시험 구간 정의",
+            "detail": "200Cy 연속 기준 삼성·업체 합의",
+            "tag": "협의",
+            "group": "운영"
+          },
+          {
+            "topic": "에러코드 마스터 추가(ERR-004~005)",
+            "detail": "코드마스터 미정의 코드 등록 필요",
+            "tag": "검토",
+            "group": "기타"
+          }
+        ],
+        "_box_status_04": "───── 04 라인 레이아웃 (이 박스 글자는 여기서 수정) ─────",
         "lineTitle": "설비 평가 진행 (라인 레이아웃)",
         "lineBadge": "📷 {n}설비 순차",
         "lineSub": "SEQUENTIAL STATION TEST",
@@ -251,6 +346,7 @@
         "lineCapPassed": "통과",
         "lineCapWaiting": "대기",
         "lineCapFallback": "라인 레이아웃",
+        "_box_status_05": "───── 05 SW 개발 현황 (이 박스 글자는 여기서 수정) ─────",
         "swTitle": "소프트웨어 개발 현황",
         "swBadge": "완성도 {n}%",
         "swSub": "SW MODULE STATUS · 🟢완료 🟠진행 ⬜미완성",
@@ -258,6 +354,7 @@
         "swNone": "없음",
         "swImage": "data/assets/sw_status.png",
         "swImageHint": "사진 영역 (data/assets/sw_status.png)",
+        "_box_status_06": "───── 06 레이아웃 치수 설정 (이 박스 글자는 여기서 수정) ─────",
         "layout": {
           "_help": "사진/글자 비율 직접 조절. 값만 바꾸면 화면에 바로 반영됨",
           "lineImageHeight": 300,
@@ -273,10 +370,37 @@
         "summary": "총 {tot}일 · D+{dplus} ({pct}%)",
         "today": "★ 오늘 {md}"
       },
+      "_acceptance_readme": "양산 합격기준 리스트입니다. 여기 criteria 배열의 순서·라벨·표시여부만 고치고 새로고침하면 반영됩니다(재빌드 불필요). 각 항목의 id 가 계산된 기준과 매칭되면 값·판정(충족/미달/진행)은 데이터에서 자동으로 채워지고, label 로 화면 문구만 바꿉니다. 사용 가능한 id: complete(완주) · mtbf(MTBF·신뢰수준) · openCritical(미해결 Critical) · recur(재발) · verifyClose(전 결함 검증종결). 항목을 빼면 그 기준이 숨겨지고, 순서를 바꾸면 표시 순서가 바뀝니다. id 없이 label/value/status(pass|fail|prog)만 적으면 자동계산 없이 직접 관리하는 수동 항목이 됩니다.",
+      "acceptance": {
+        "criteria": [
+          {
+            "id": "complete",
+            "label": "완주 (연속 목표 Cycle)"
+          },
+          {
+            "id": "mtbf",
+            "label": "MTBF · 신뢰수준"
+          },
+          {
+            "id": "openCritical",
+            "label": "미해결 Critical = 0"
+          },
+          {
+            "id": "recur",
+            "label": "동일 에러 재발 ≤ 0"
+          },
+          {
+            "id": "verifyClose",
+            "label": "전 결함 검증종결"
+          }
+        ]
+      },
       "summary": {
+        "_box_summary_01": "───── 01 헤더 (이 박스 글자는 여기서 수정) ─────",
         "tag": "요약",
         "title": "목표 · 핵심 지표",
         "desc": "합격·신뢰성·운용 목표 + KPI",
+        "_box_summary_02": "───── 02 합격 목표 (계약) (이 박스 글자는 여기서 수정) ─────",
         "goalPrimaryDone": "달성",
         "goalPrimaryProg": "진행 중",
         "goalPrimaryTitle": "🎯 양산평가 합격 목표 · 계약 (~{end})",
@@ -285,6 +409,7 @@
         "streakLabel": "목표까지 남은 Cycle",
         "pCum": "누적 진행",
         "goalPrimaryNote": "누적 에러 {errors}건 · 남은 {remain} Cycle 통과가 관건 (반드시 달성)",
+        "_box_summary_03": "───── 03 신뢰성 입증 목표 (심화) (이 박스 글자는 여기서 수정) ─────",
         "goalSecondaryPass": "충족",
         "goalSecondaryCond": "조건부",
         "goalSecondaryTitle": "🛡 신뢰성 입증 목표 · 심화 (프로젝트 최종)",
@@ -300,11 +425,14 @@
         "donutErrRate": "기간 에러율",
         "donutErrRateSub": "최근4주 목표<{t}%",
         "goalSecondaryNote": "합격(좌)을 넘어 \"신뢰성 있게 쓸 수 있나\"를 정량 입증 — 아래 6단계가 근거",
+        "_box_summary_04": "───── 04 목표 캡션 (이 박스 글자는 여기서 수정) ─────",
         "capPrimary": "<b>🎯 양산평가 합격</b> = 계약 통과, <b>반드시 달성</b>",
         "capSecondary": "<b>🛡 신뢰성 입증</b> = 더 높은 신뢰도 확보, <b>권장</b>",
+        "_box_summary_05": "───── 05 운용 신뢰도 (이 박스 글자는 여기서 수정) ─────",
         "opRel": "🔧 <b>운용 신뢰도</b> (근본해결·대응)",
         "opRelDetail": "재발 <b>{recur}</b>건 · 검증 종결 <b>{closed}%</b> · 미해결 Critical <b>{open}</b>",
         "opRelMini": "규칙 기반 · 신규 데이터 0칸",
+        "_box_summary_06": "───── 06 히어로 진행 카드 (이 박스 글자는 여기서 수정) ─────",
         "heroLabel": "MTBI · 양산평가 진행",
         "heroTitle": "누적 평가 진행률",
         "heroCur": "현재 시도",
@@ -312,6 +440,8 @@
         "heroStreak": "무고장 연속",
         "heroMax": "고장(누적)",
         "heroDonutSub": "달성률",
+        "heroThroughput": "일평균 처리량",
+        "_box_summary_07": "───── 07 Error Budget (이 박스 글자는 여기서 수정) ─────",
         "ebudLabel": "Error Budget · 현재 시도 에러 / 한도",
         "ebudOf": "of {limit}",
         "ebudReset": "한도 초과 리셋 {n}회 · 누적 에러 {total}건",
@@ -321,15 +451,16 @@
         "ebudSuccess": "성공률",
         "ebudMtbf": "MTBF",
         "ebudRecur": "재발",
+        "_box_summary_08": "───── 08 하단 KPI (이 박스 글자는 여기서 수정) ─────",
         "kpiProgress": "평가 진행률",
         "kpiProgressSub": "{cum}/{target}",
         "kpiSuccess": "성공률",
         "kpiSuccessSub": "성공 {success}·실패 {errors}",
         "kpiThroughput": "일평균 처리량",
-        "kpiThroughputSub": "총 누적 {total}",
-        "heroThroughput": "일평균 처리량"
+        "kpiThroughputSub": "총 누적 {total}"
       },
       "steps": {
+        "_box_steps_01": "───── 00 헤더 · 공통 (이 박스 글자는 여기서 수정) ─────",
         "tag": "신뢰성 입증 흐름",
         "title": "6단계로 \"신뢰성 있게 쓸 수 있나\" 입증",
         "desc": "🛡 Track 2 근거 · 합격은 위 요약에서 추적",
@@ -337,11 +468,13 @@
         "critFail": "미달",
         "critProg": "진행",
         "chartTargetLabel": "목표 {v}",
+        "_box_steps_02": "───── STEP1 합격선 정의 (이 박스 글자는 여기서 수정) ─────",
         "s1Title": "합격선 정의",
         "s1Q": "결과를 보기 전에 \"무엇을 신뢰성이라 부를지\"를 먼저 못박았는가?",
         "s1Chip": "사전 정의 · {passed}/{total} 충족",
         "s1PanelTitle": "합격 기준 (사전 합의 · config 고정)",
         "s1PanelSub": "PRE-DEFINED ACCEPTANCE CRITERIA · post-hoc 아님",
+        "_box_steps_03": "───── STEP2 결함관리(FRACAS)·고장프로파일 (이 박스 글자는 여기서 수정) ─────",
         "s2Title": "결함관리 (FRACAS) · 고장 프로파일",
         "s2Q": "모든 결함이 폐쇄루프로 닫혔는가 / 무엇이 얼마나 나쁜가?",
         "s2Chip": "폐쇄루프 추적",
@@ -374,7 +507,9 @@
         "recurSub": "같은 코드 재출현 (자동)",
         "recurUnit": "건 · {rate}%",
         "recurNone": "재발 없음",
+        "recurCleared": "검증완료로 해제: {list}",
         "recurWarn": "⚠️ 조치 후 재발 = 근본원인 미해결 신호",
+        "_box_steps_04": "───── STEP3 신뢰성 성장 (이 박스 글자는 여기서 수정) ─────",
         "s3Title": "신뢰성 성장",
         "s3Q": "고치며 운영할수록 실제로 더 안정돼 왔는가?",
         "s3Chip": "추세",
@@ -414,6 +549,7 @@
         "errRateRecentLabel": "최근 {weeks}주 에러율",
         "errRateRecentDetail": "에러 {errors} / {cycles} Cycle · {from}~{to}",
         "errRateRecentLow": "표본부족",
+        "_box_steps_05": "───── STEP4 신뢰수준 입증 (이 박스 글자는 여기서 수정) ─────",
         "s4Title": "신뢰수준 입증",
         "s4Q": "정해둔 신뢰수준으로 목표 MTBF를 \"통계적으로\" 입증했는가?",
         "s4PanelTitle": "신뢰성 입증 (무고장 시험 기반)",
@@ -433,6 +569,7 @@
         "s4Now": "{pct}% (현재)",
         "s4GoalMark": " (목표)",
         "s4Achieved": "달성",
+        "_box_steps_06": "───── STEP5 미해결 0 종결 (이 박스 글자는 여기서 수정) ─────",
         "s5Title": "미해결 0 종결",
         "s5Q": "알려진 결함이 모두 검증 종결됐는가?",
         "s5Chip": "미해결 조치 {open}건 · Critical {crit}",
@@ -457,6 +594,7 @@
           "검증",
           "진행률"
         ],
+        "_box_steps_07": "───── STEP6 기록(근거) (이 박스 글자는 여기서 수정) ─────",
         "s6Title": "기록 (근거)",
         "s6Q": "판정의 원천 기록이 보존·추적 가능한가?",
         "s6Chip": "git 추적",
@@ -483,9 +621,11 @@
         "errlogBtn": "＋상세"
       },
       "info": {
+        "_box_info_01": "───── 01 헤더 (이 박스 글자는 여기서 수정) ─────",
         "tag": "프로젝트 정보",
         "title": "Project Info",
         "desc": "개요 · 합격기준 · 방법론",
+        "_box_info_02": "───── 02 프로젝트 개요 (이 박스 글자는 여기서 수정) ─────",
         "overviewTitle": "프로젝트 개요",
         "overviewSub": "OVERVIEW · config 기반",
         "rowProject": "프로젝트",
@@ -495,6 +635,7 @@
         "rowOwner": "담당",
         "rowSource": "데이터 출처",
         "rowSourceVal": "업체 xlsx + SEC_REPORT.xlsx → build_dashboard_json.py → git",
+        "_box_info_03": "───── 03 평가·합격 기준/방법론 (이 박스 글자는 여기서 수정) ─────",
         "critTitle": "평가 · 합격 기준",
         "critSub": "CRITERIA & METHOD · 사전 합의 · 수정 가능",
         "critPass": "🎯 합격(계약)",
@@ -509,6 +650,7 @@
         "critMethodVal": "FRACAS + 신뢰성 성장 + 무고장 시험 <span class=\"mini\">(RCM은 합격 후 정비단계)</span>"
       },
       "modal": {
+        "_box_modal_01": "───── 01 에러 상세 모달 (이 박스 글자는 여기서 수정) ─────",
         "title": "에러 상세",
         "titleFull": "에러 상세 · {code} (No.{no})",
         "occur": "발생",
@@ -981,7 +1123,7 @@
     "recentWindow": {
       "weeks": 4,
       "fromDate": "2026-06-08",
-      "toDate": "2026-07-01",
+      "toDate": "2026-07-02",
       "cycles": 103,
       "errors": 14,
       "rate": 13.6,
@@ -1125,7 +1267,8 @@
       "noFailCycles": 0,
       "verifyTarget": 200,
       "verifyProgress": 0,
-      "verifyResult": "조치중"
+      "verifyResult": "조치중",
+      "verifyManual": false
     },
     {
       "id": "A-002",
@@ -1142,7 +1285,8 @@
       "noFailCycles": 3,
       "verifyTarget": 200,
       "verifyProgress": 2,
-      "verifyResult": "검증중"
+      "verifyResult": "검증중",
+      "verifyManual": false
     },
     {
       "id": "A-003",
@@ -1159,7 +1303,8 @@
       "noFailCycles": 0,
       "verifyTarget": 200,
       "verifyProgress": 0,
-      "verifyResult": "재발"
+      "verifyResult": "재발",
+      "verifyManual": false
     }
   ],
   "recurrence": {
@@ -1176,31 +1321,37 @@
         "type": "Gripper Slip",
         "count": 3
       }
-    ]
+    ],
+    "cleared": []
   },
   "acceptance": {
     "criteria": [
       {
+        "id": "complete",
         "key": "완주",
         "value": "49/360",
         "status": "prog"
       },
       {
+        "id": "mtbf",
         "key": "MTBF≥100 @80%",
         "value": "MTBF 103 / 신뢰수준 64%",
         "status": "fail"
       },
       {
+        "id": "openCritical",
         "key": "미해결 Critical=0",
         "value": "1건",
         "status": "fail"
       },
       {
+        "id": "recur",
         "key": "재발≤0",
         "value": "3건",
         "status": "fail"
       },
       {
+        "id": "verifyClose",
         "key": "전 결함 검증종결",
         "value": "0/3",
         "status": "prog"

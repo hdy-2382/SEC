@@ -310,6 +310,44 @@ function setDetailCollapsed(collapsed) {
 }
 
 /* ── 섹션 렌더러 ── */
+
+/* 양산 합격기준 리스트 — config.json ui.acceptance.criteria 로 순서·라벨·표시여부 관리(재빌드 불필요).
+   각 config 항목 { id, label? }:
+     · id 가 계산된 기준(complete/mtbf/openCritical/recur/verifyClose)과 매칭되면 값·판정 자동 사용,
+       label 을 적으면 그 문구로 대체(생략 시 자동 문구).
+     · id 없이 { label, value?, status? } 로 적으면 사용자가 직접 관리하는 수동 항목.
+   config 목록이 없으면 빌드 계산 순서(DATA.acceptance.criteria) 그대로 사용(하위호환). */
+function acceptanceCriteria() {
+  const computed = {};
+  ((DATA.acceptance && DATA.acceptance.criteria) || []).forEach(c => { if (c.id) computed[c.id] = c; });
+  const defs = T('acceptance.criteria');
+  if (!Array.isArray(defs) || !defs.length) return (DATA.acceptance && DATA.acceptance.criteria) || [];
+  return defs.map(d => {
+    const base = (d.id && computed[d.id]) ? computed[d.id] : {};
+    return {
+      id: d.id || '',
+      key: d.label != null ? d.label : (base.key || ''),
+      value: d.value != null ? d.value : (base.value != null ? base.value : ''),
+      status: d.status != null ? d.status : (base.status || 'prog'),
+    };
+  });
+}
+
+/* 상단 타이틀바용 개발단계 스텝퍼 (한눈에 보기 탭 전용) — 박스형·컬러 강조·진행카운트·커넥터. */
+function buildTopbarLc(C) {
+  const arr = (C && C.lifecycle) || [];
+  if (!arr.length) return '';
+  const curIdx = arr.findIndex(s => s.status === 'current');
+  const doneN = arr.filter(s => s.status === 'done').length;
+  const prog = curIdx >= 0 ? curIdx + 1 : doneN;               // 현재 단계 번호
+  const steps = arr.map((s, i) => {
+    const cls = s.status === 'done' ? 'done' : s.status === 'current' ? 'cur' : 'todo';
+    const mark = s.status === 'done' ? '✓' : (i + 1);
+    return `<span class="tb-step ${cls}"><i class="tb-dot">${mark}</i>${esc(s.stage)}</span>`;
+  }).join('<span class="tb-sep"></span>');
+  return `<span class="tb-lc-cap">${esc(T('overview.lcTitle', '개발 단계'))} <b>${prog}/${arr.length}</b></span>${steps}`;
+}
+
 /* 협의 및 논의 필요 항목 — config.json ui.status.discussItems (자유 편집, 재빌드 불필요).
    각 항목 { topic, detail?, tag? }. tag → 색상(긴급/검토/협의/완료/보류) 자동 매핑.
    mode='card'(개발 현황: 가운데 정렬 카드) | 'list'(한눈에 보기: 심플 리스트). status/overview 공용. */
@@ -422,7 +460,10 @@ function renderSummary(C, m, acc, op) {
     weeklyAvg: m.weekly.length ? Math.round(m.errorsTotal / m.weekly.length * 100) / 100 : 0,
   };
   const conf = m.confidence;
-  const goalCrit = acc.criteria[0], goalConf = acc.criteria[1];
+  const critById = id => ((DATA.acceptance && DATA.acceptance.criteria) || []).find(c => c.id === id);
+  const goalCrit = critById('complete') || acc.criteria[0] || {}, goalConf = critById('mtbf') || acc.criteria[1] || {};
+  const accCs = acceptanceCriteria();
+  const accPassed = accCs.filter(c => c.status === 'pass').length, accTotal = accCs.length;
   // 신뢰성 입증 목표 달성률 도넛 (입증단계·신뢰수준·MTBF·기간에러율). 에러율은 lower-better → 목표/현재.
   const recentRate = (m.recentWindow || {}).rate || 0, errTgt = m.errRateTarget;
   const dMtbf = m.mtbf.target ? m.mtbf.current / m.mtbf.target * 100 : 0;
@@ -459,7 +500,7 @@ function renderSummary(C, m, acc, op) {
         <div class="gnote">${esc(TT('summary.goalPrimaryNote', { errors: m.errorsTotal, remain }))}</div>
       </div>
       <div class="goal secondary">
-        <span class="gstatus gs-cond">${acc.passed}/${acc.total} · ${esc(goalConf.status === 'pass' ? T('summary.goalSecondaryPass') : T('summary.goalSecondaryCond'))}</span>
+        <span class="gstatus gs-cond">${accPassed}/${accTotal} · ${esc(goalConf.status === 'pass' ? T('summary.goalSecondaryPass') : T('summary.goalSecondaryCond'))}</span>
         <div class="gl">${esc(T('summary.goalSecondaryTitle'))}</div>
         <div class="gt">${esc(TT('summary.goalSecondaryGoal', { mtbf: m.mtbf.target, conf: Math.round(conf.level * 100), err: m.errRateTarget }))}</div>
         <div style="display:flex;gap:8px;margin:12px 0 8px;justify-content:space-around">
@@ -489,7 +530,9 @@ function stepHead(no, title, q, chip, cls) {
 function renderSteps(C, m, f, acc, op) {
   const conf = m.confidence, verifyCy = (C.acceptance || {}).verifyCycle || 200;
   const critStatus = st => st === 'pass' ? T('steps.critPass') : st === 'fail' ? T('steps.critFail') : T('steps.critProg');
-  const crit = acc.criteria.map(c =>
+  const accCs = acceptanceCriteria();
+  const accPassed = accCs.filter(c => c.status === 'pass').length, accTotal = accCs.length;
+  const crit = accCs.map(c =>
     `<div class="crit"><div class="k">${esc(c.key)}</div><div class="v">${esc(c.value)}</div><span class="s ${c.status}">${esc(critStatus(c.status))}</span></div>`).join('');
   const fracasH = T('steps.fracasH', []);
   const fracas = DATA.actions.map(a => `
@@ -504,7 +547,7 @@ function renderSteps(C, m, f, acc, op) {
   const mcls = { High: 'm-h', Medium: 'm-m', Low: 'm-l' };
   let grid = `<div class="lab"></div>` + cols.map(c => `<div class="lab">${c}</div>`).join('');
   rows.forEach(rk => {
-    grid += `<div class="lab">${rk.slice(0, 4)}</div>`;
+    grid += `<div class="lab" style="color:${SEV_BAR[rk] || 'var(--muted)'}">${esc(sevLabel(rk))}</div>`;
     cols.forEach(ck => {
       const p = PRIO[rk + '|' + ck], dots = (cell[rk + '|' + ck] || []).map(n => `<span class="pt">${n}</span>`).join('');
       grid += `<div class="cell ${mcls[p]}">${dots}</div>`;
@@ -555,7 +598,7 @@ function renderSteps(C, m, f, acc, op) {
     <div class="sbox-h"><span class="tag">${esc(T('steps.tag'))}</span><h2>${esc(T('steps.title'))}</h2><span class="d">${esc(T('steps.desc'))}</span></div>
 
     <section class="step" id="s1">
-      ${stepHead(1, T('steps.s1Title'), T('steps.s1Q'), TT('steps.s1Chip', { passed: acc.passed, total: acc.total }), 'prog')}
+      ${stepHead(1, T('steps.s1Title'), T('steps.s1Q'), TT('steps.s1Chip', { passed: accPassed, total: accTotal }), 'prog')}
       <div class="step-body"><div class="panel">
         <div class="ph"><h3>${esc(T('steps.s1PanelTitle'))}</h3><span class="ps">${esc(T('steps.s1PanelSub'))}</span></div>
         <div class="crit-grid">${crit}</div>
@@ -572,7 +615,7 @@ function renderSteps(C, m, f, acc, op) {
         <div class="grid g3 mt">
           <div class="panel"><div class="ph"><h3>${esc(T('steps.top5Title'))}</h3><span class="ps">${esc(T('steps.top5Sub'))}</span></div><table><tr>${(T('steps.top5H', [])).map((h, i) => i === 2 || i === 4 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>
           <div class="panel"><div class="ph"><h3>${esc(T('steps.matrixTitle'))}</h3><span class="ps">${esc(T('steps.matrixSub'))}</span></div><div class="matrix">${grid}</div><div class="legend-row">${legend}</div></div>
-          <div class="panel"><div class="ph"><h3>${esc(T('steps.recurTitle'))}</h3><span class="ps">${esc(T('steps.recurSub'))}</span></div><div class="stat-big"><b>${DATA.recurrence.count}</b><span>${esc(TT('steps.recurUnit', { rate: DATA.recurrence.rate }))}</span></div><div class="mini">${DATA.recurrence.items.map(it => esc(it.code) + '(' + it.count + ')').join(', ') || esc(T('steps.recurNone'))}</div><div class="mini" style="margin-top:6px">${esc(T('steps.recurWarn'))}</div></div>
+          <div class="panel"><div class="ph"><h3>${esc(T('steps.recurTitle'))}</h3><span class="ps">${esc(T('steps.recurSub'))}</span></div><div class="stat-big"><b>${DATA.recurrence.count}</b><span>${esc(TT('steps.recurUnit', { rate: DATA.recurrence.rate }))}</span></div><div class="mini">${DATA.recurrence.items.map(it => esc(it.code) + '(' + it.count + ')').join(', ') || esc(T('steps.recurNone'))}</div>${(DATA.recurrence.cleared || []).length ? `<div class="mini" style="margin-top:6px;color:var(--green)">✅ ${esc(TT('steps.recurCleared', { list: DATA.recurrence.cleared.map(it => it.code).join(', ') }, '검증완료로 해제: {list}'))}</div>` : ''}<div class="mini" style="margin-top:6px">${esc(T('steps.recurWarn'))}</div></div>
         </div>
       </div>
     </section>
@@ -649,25 +692,34 @@ function renderOverview(C, m, f, acc, op) {
   const succGo = accept.successRateTargetPct != null ? accept.successRateTargetPct : 95;
   const succWarn = accept.successRateWarnPct != null ? accept.successRateWarnPct : 85;
   const confPct = conf.currentPct != null ? conf.currentPct : 0, confLv = Math.round((conf.level || 0.8) * 100);
-  const passed = acc.passed || 0, total = acc.total || 5, grade = op.grade || '—';
+  const accCs = acceptanceCriteria();
+  const passed = accCs.filter(c => c.status === 'pass').length, total = accCs.length, grade = op.grade || '—';
   const gradeCls = grade === '양호' ? 'go' : grade === '주의' ? 'warn' : 'bad';
 
   const O = (k, fb) => T('overview.' + k, fb);           // 한눈에 보기 글자 = config.json ui.overview
   const OT = (k, vars, fb) => TT('overview.' + k, vars, fb);
 
-  // KPI 카드 (상태색: go=녹 / warn=황 / bad=적 / info=파랑)
-  const kc = (cls, k, v, unit, sub, tag) =>
-    `<div class="kcard ${cls}"><div class="kk">${esc(k)}</div>
-      <div class="kv">${v}${unit ? `<small>${esc(unit)}</small>` : ''}</div>
-      <div class="ks">${esc(sub)}</div>${tag ? `<span class="kt">${esc(tag)}</span>` : ''}</div>`;
-  const kstrip = [
-    kc('k-info', O('kpiProgress'), (prog.pct != null ? prog.pct : 0), '%', OT('kpiProgressSub', { cum: fmt(prog.cum), target: fmt(prog.target) }), O('kpiProgressTag')),
-    kc(succ >= succGo ? 'k-go' : succ >= succWarn ? 'k-warn' : 'k-bad', O('kpiSuccess'), succ.toFixed(1), '%', OT('kpiSuccessSub', { success: fmt(m.success), errors: fmt(m.errorsTotal) }), succ >= succGo ? O('kpiSuccessTagGo') : O('kpiSuccessTagWarn')),
-    kc(recentRate <= errTgt ? 'k-go' : recentRate <= errTgt * 2 ? 'k-warn' : 'k-bad', O('kpiErrRate'), recentRate, '%', OT('kpiErrRateSub', { tgt: errTgt, errors: fmt(rw.errors), cycles: fmt(rw.cycles) }), recentRate <= errTgt ? O('kpiErrRateTagGo') : O('kpiErrRateTagBad')),
-    kc(recurN <= (accept.recurrenceLimit != null ? accept.recurrenceLimit : 0) ? 'k-go' : 'k-bad', O('kpiRecur'), recurN, '건', OT('kpiRecurSub', { rate: rec.rate != null ? rec.rate : 0 }), recurN <= 0 ? O('kpiRecurTagGo') : O('kpiRecurTagBad')),
-    kc(mtbf.current >= mtbf.target ? 'k-go' : mtbf.current >= mtbf.target * 0.5 ? 'k-warn' : 'k-bad', O('kpiMtbf'), fmt(mtbf.current), `/${fmt(mtbf.target)}`, O('kpiMtbfSub'), mtbf.current >= mtbf.target ? O('kpiMtbfTagGo') : O('kpiMtbfTagWarn')),
-    kc(confPct >= confLv ? 'k-go' : confPct >= confLv * 0.6 ? 'k-warn' : 'k-bad', O('kpiConf'), confPct, '%', OT('kpiConfSub', { lv: confLv, cyc: fmt(conf.currentCycles) }), confPct >= confLv ? O('kpiConfTagGo') : O('kpiConfTagProg')),
-  ].join('');
+  // 6개 KPI 기술자(값 + 목표대비 달성률 pct). 에러율·재발은 lower-better → '목표 대비 여유'로 환산.
+  const SC = { 'k-info': 'var(--sky)', 'k-go': 'var(--green)', 'k-warn': 'var(--major)', 'k-bad': 'var(--crit)' };
+  // 도넛 색 경계(목표의 몇 배) — config.json ui.overview.donutBands 로 조절(새로고침만). 없으면 기본값.
+  const _bands = O('donutBands') || {};
+  const band = (id, key, def) => { const v = _bands[id] && _bands[id][key]; return typeof v === 'number' ? v : def; };
+  const errBad = band('errRate', 'badMult', 3);      // 에러율: 목표×이 값 초과 → 빨강
+  const mtbfWarn = band('mtbf', 'warnMult', 0.5);    // MTBF: 목표×이 값 미만 → 빨강
+  const confWarn = band('conf', 'warnMult', 0.6);    // 신뢰수준: 목표×이 값 미만 → 빨강
+  const K = [
+    { cls: 'k-info', label: O('kpiProgress'), disp: (prog.pct != null ? prog.pct : 0), unit: '%', sub: OT('kpiProgressSub', { cum: fmt(prog.cum), target: fmt(prog.target) }), tag: O('kpiProgressTag'), pct: (prog.pct != null ? prog.pct : 0) },
+    { cls: succ >= succGo ? 'k-go' : succ >= succWarn ? 'k-warn' : 'k-bad', label: O('kpiSuccess'), disp: succ.toFixed(1), unit: '%', sub: OT('kpiSuccessSub', { success: fmt(m.success), errors: fmt(m.errorsTotal) }), tag: succ >= succGo ? O('kpiSuccessTagGo') : O('kpiSuccessTagWarn'), pct: succ },
+    { cls: recentRate <= errTgt ? 'k-go' : recentRate <= errTgt * errBad ? 'k-warn' : 'k-bad', label: O('kpiErrRate'), disp: recentRate, unit: '%', sub: OT('kpiErrRateSub', { tgt: errTgt, errors: fmt(rw.errors), cycles: fmt(rw.cycles) }), tag: recentRate <= errTgt ? O('kpiErrRateTagGo') : O('kpiErrRateTagBad'), pct: recentRate <= 0 ? 100 : Math.min(100, errTgt / recentRate * 100) },
+    { cls: recurN <= (accept.recurrenceLimit != null ? accept.recurrenceLimit : 0) ? 'k-go' : 'k-bad', label: O('kpiRecur'), disp: recurN, unit: '건', sub: OT('kpiRecurSub', { rate: rec.rate != null ? rec.rate : 0 }), tag: recurN <= 0 ? O('kpiRecurTagGo') : O('kpiRecurTagBad'), pct: Math.max(0, 100 - (rec.rate != null ? rec.rate : 0)) },
+    { cls: mtbf.current >= mtbf.target ? 'k-go' : mtbf.current >= mtbf.target * mtbfWarn ? 'k-warn' : 'k-bad', label: O('kpiMtbf'), disp: fmt(mtbf.current), unit: `/${fmt(mtbf.target)}`, sub: O('kpiMtbfSub'), tag: mtbf.current >= mtbf.target ? O('kpiMtbfTagGo') : O('kpiMtbfTagWarn'), pct: mtbf.target ? Math.min(100, mtbf.current / mtbf.target * 100) : 0 },
+    { cls: confPct >= confLv ? 'k-go' : confPct >= confLv * confWarn ? 'k-warn' : 'k-bad', label: O('kpiConf'), disp: confPct, unit: '%', sub: OT('kpiConfSub', { lv: confLv, cyc: fmt(conf.currentCycles) }), tag: confPct >= confLv ? O('kpiConfTagGo') : O('kpiConfTagProg'), pct: confLv ? Math.min(100, confPct / confLv * 100) : 0 },
+  ];
+  const GRP = [
+    { icon: '🎯', title: O('kgProgress', '평가 진행 · 성공'), a: K[0], b: K[1] },
+    { icon: '⚠️', title: O('kgQuality', '에러 · 재발'), a: K[2], b: K[3] },
+    { icon: '🛡', title: O('kgReliability', '신뢰성 입증 (MTBF·신뢰수준)'), a: K[4], b: K[5] },
+  ];
 
   // 위험 매트릭스 (renderSteps 와 동일 구조). 데이터 키는 고정, 표시 라벨만 config.
   const occL = [O('occRare', '드묾'), O('occMid', '보통'), O('occHigh', '빈발')];
@@ -676,7 +728,7 @@ function renderOverview(C, m, f, acc, op) {
   const mcls = { High: 'm-h', Medium: 'm-m', Low: 'm-l' };
   let mx = `<div class="lab"></div>` + mcols.map((c, ci) => `<div class="lab">${esc(occL[ci])}</div>`).join('');
   mrows.forEach(rk => {
-    mx += `<div class="lab">${esc(rk.slice(0, 4))}</div>`;
+    mx += `<div class="lab" style="color:${SEV_BAR[rk] || 'var(--muted)'}">${esc(sevLabel(rk))}</div>`;
     mcols.forEach(ck => {
       const p = PRIO[rk + '|' + ck], dots = (mcell[rk + '|' + ck] || []).map(n => `<span class="pt">${n}</span>`).join('');
       mx += `<div class="cell ${mcls[p]}">${dots}</div>`;
@@ -690,26 +742,38 @@ function renderOverview(C, m, f, acc, op) {
       <td class="c"><span class="badge ${SEV_BADGE[t.severity] || ''}">${esc(sevLabel(t.severity))}</span></td>
       <td class="c">${t.recur ? `<span class="badge b-crit">${esc(O('recurBadge', '재발'))}</span>` : '—'}</td></tr>`).join('');
 
-  // 합격 기준 체크리스트
-  const SL = { pass: O('stSuffice', '충족'), fail: O('stUnmet', '미달'), prog: O('stProg', '진행') };
-  const chk = (acc.criteria || []).map(c =>
-    `<div class="chk"><span class="cs s ${c.status}">${esc(SL[c.status] || c.status)}</span>
-      <span class="nm">${esc(c.key)}</span><span class="vv">${esc(c.value)}</span></div>`).join('');
-
-  // 운용 신뢰도 도넛
-  const opDon = [
-    miniDonut(op.verifyClosedRate || 0, 'var(--green)', (op.verifyClosedRate || 0) + '%', O('opDonClosed'), O('opDonClosedSub'), 104),
-    miniDonut(op.openCritical > 0 ? 100 : 0, op.openCritical > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.openCritical), O('opDonCrit'), O('opDonCritSub'), 104),
-    miniDonut(recurN > 0 ? 100 : 0, recurN > 0 ? 'var(--crit)' : 'var(--green)', fmt(op.recur != null ? op.recur : recurN), O('opDonRecur'), O('opDonRecurSub'), 104),
-  ].join('');
-
   // 양산평가 합격 기준(계약 게이트) — 연속 {target} Cycle 완주 + 에러버짓
   const errLimit = accept.errorLimit || 3;
   const eb = m.errorBudget || { used: m.errorsTotal, limit: errLimit, resets: 0, lifetimeErrors: m.errorsTotal };
   const remain = Math.max(0, prog.target - prog.cum);
-  const goalCrit = (acc.criteria || [])[0] || { status: 'prog' };
+  const goalCrit = ((DATA.acceptance && DATA.acceptance.criteria) || []).find(c => c.id === 'complete') || (acc.criteria || [])[0] || { status: 'prog' };
   const ebudNote = eb.resets ? TT('summary.ebudReset', { n: eb.resets, total: eb.lifetimeErrors }) : TT('summary.ebudNoReset', { total: eb.lifetimeErrors });
   const ebBlocks = Array.from({ length: eb.limit }, (_, i) => `<i class="${i < eb.used ? 'used' : 'free'}"></i>`).join('');
+
+  // 진행·성공 박스 = 진행률 히어로 도넛 + 성공률·에러버짓 보조 스탯 + 게이트.
+  const progPct = prog.pct != null ? prog.pct : 0;
+  const succClr = SC[GRP[0].b.cls];
+  // 진행률 도넛 색: 진행 레벨(%)에 따라 빨강→주황→초록. 경계는 config donutBands.progress 로 조절.
+  const pgGo = band('progress', 'goAt', 66), pgWarn = band('progress', 'warnAt', 33);
+  const progCls = progPct >= pgGo ? 'k-go' : progPct >= pgWarn ? 'k-warn' : 'k-bad';
+  const progDonut = `<div class="pg-donut"><svg viewBox="0 0 42 42"><circle class="trk" cx="21" cy="21" r="15.9"/><circle class="arc" cx="21" cy="21" r="15.9" style="stroke:${SC[progCls]}" stroke-dasharray="${Math.min(100, progPct)} ${100 - Math.min(100, progPct)}" stroke-dashoffset="25"/></svg><div class="pg-donut-ctr"><b>${progPct}%</b></div></div>`;
+  const kProgBox = `<div class="kgroup kg-prog"><div class="kg-h">${GRP[0].icon} ${esc(GRP[0].title)}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>
+    <div class="pg-subh">${esc(GRP[0].a.label)}</div>
+    <div class="pg-hero">
+      <div class="pg-hero-main">
+        <div class="pg-num"><b>${fmt(prog.cum)}</b><span>/ ${fmt(prog.target)} Cy</span></div>
+        <div class="pg-bar"><i style="width:${Math.min(100, progPct)}%;background:${SC[progCls]}"></i></div>
+        <div class="pg-remain">${OT('gateRemain', { n: fmt(remain) })}</div>
+      </div>
+      ${progDonut}
+    </div>
+    <div class="pg-stats">
+      <div class="pg-stat"><span class="pg-stat-k">${esc(GRP[0].b.label)}</span><span class="pg-stat-v">${GRP[0].b.disp}<small>%</small></span>
+        <div class="pg-mini"><i style="width:${Math.min(100, succ)}%;background:${succClr}"></i></div><span class="pg-stat-s">${esc(GRP[0].b.sub)}</span></div>
+      <div class="pg-stat"><span class="pg-stat-k">${esc(O('gateBudget', 'Error Budget'))} <b>${eb.used}/${eb.limit}</b></span>
+        <div class="blocks" style="margin:9px 0 6px">${ebBlocks}</div><span class="pg-stat-s">${esc(ebudNote)}</span></div>
+    </div>
+    <div class="pg-foot">${OT('gateGoal', { target: fmt(prog.target), limit: errLimit })}</div></div>`;
 
   // lifecycle 미니
   const lcStat = { done: O('lcDone', '완료'), current: O('lcCurrent', '진행 중'), todo: O('lcTodo', '예정') };
@@ -718,10 +782,30 @@ function renderOverview(C, m, f, acc, op) {
     return `<div class="lcm ${cls}"><div class="s">${esc(lcStat[s.status] || '')}</div><div class="n">${esc(s.stage)}</div></div>`;
   }).join('');
 
-  // SW 모듈 바
-  const mods = (C.swModules || []).map(s => {
+  // SW 모듈 바 — group(로봇/상위시스템/환경)별 3열. 모듈의 group 필드로 분류.
+  const moduleBar = s => {
     const col = s.pct >= 100 ? 'var(--green)' : s.pct >= 70 ? 'var(--sky)' : 'var(--major)';
     return `<div class="mod"><span class="nm">${esc(s.name)}</span><div class="bar"><i style="width:${s.pct}%;background:${col}"></i></div><span class="pc">${s.pct}%</span></div>`;
+  };
+  const swGroups = Array.isArray(O('swGroups')) ? O('swGroups') : ['로봇', '상위시스템', '환경'];
+  const swCols = swGroups.map(g => {
+    const items = (C.swModules || []).filter(s => (s.group || swGroups[0]) === g);
+    return `<div class="sw-col"><div class="sw-col-h">${esc(g)}<span>${items.length}</span></div><div class="sw-col-body">${items.map(moduleBar).join('') || `<div class="mini">—</div>`}</div></div>`;
+  }).join('');
+
+  // 협의 및 논의 필요(한눈에 보기용 — 심플 리스트)
+  const ovDiscuss = discussModel('list');
+  // 협의 항목을 group(안전/운영/기타)별 3열로. 항목의 group 필드로 분류(없으면 마지막 열=기타).
+  const DTAG_OV = { '긴급': 't-urgent', '검토': 't-review', '협의': 't-discuss', '진행': 't-review', '완료': 't-done', '보류': 't-hold' };
+  const discArr = Array.isArray(T('status.discussItems')) ? T('status.discussItems') : [];
+  const discGroups = Array.isArray(O('discGroups')) ? O('discGroups') : ['안전', '운영', '기타'];
+  const discItemHtml = it => {
+    const tag = it.tag ? `<span class="disc-tag ${DTAG_OV[it.tag] || 't-discuss'}">${esc(it.tag)}</span>` : '';
+    return `<li class="ovd-it">${tag}<span class="ovd-t">${esc(it.topic || it.title || '')}</span></li>`;
+  };
+  const discCols = discGroups.map(g => {
+    const items = discArr.filter(it => (it.group || discGroups[discGroups.length - 1]) === g);
+    return `<div class="sw-col"><div class="sw-col-h">${esc(g)}<span>${items.length}</span></div><ul class="ov-disc sw-col-body">${items.map(discItemHtml).join('') || `<li class="ovd-empty">—</li>`}</ul></div>`;
   }).join('');
 
   // 심각도 분포
@@ -730,66 +814,70 @@ function renderOverview(C, m, f, acc, op) {
   // 최근 알람 피드
   const codeSev = {};
   (DATA.codes || []).forEach(c => { codeSev[c.code] = c.severity; });
-  const feed = (DATA.errors || []).slice().reverse().slice(0, 5).map(e => {
+  const feed = (DATA.errors || []).slice().reverse().map(e => {
     const sevCls = SEV_BADGE[codeSev[e.code]] || 'b-minor';
     return `<div class="it"><span class="badge ${sevCls}">${esc(e.code)}</span>
       <div class="tp"><div class="t1">${esc(e.type || '-')}</div><div class="t2">${esc(e.detail || e.cause || '')}</div></div>
       <span class="dt">${esc(e.date || '')}<br>${esc(e.result || '')}</span></div>`;
   }).join('');
 
-  // 협의 및 논의 필요(한눈에 보기용 — 심플 리스트)
-  const ovDiscuss = discussModel('list');
-
   // 신뢰수준 입증 표
   const ctable = (conf.table || []).map(t =>
     `<tr class="${t.c === confLv ? 'now' : ''}"><td>${t.c}%</td><td class="c">${t.required}</td>
       <td class="c">${(conf.currentCycles || 0) >= t.required ? '<span class="badge b-ok">달성</span>' : '+' + (t.required - (conf.currentCycles || 0))}</td></tr>`).join('');
 
+  // 왼쪽 통합 트랙에 들어갈 성장추이 패널 (span 없이 트랙 폭 전체)
+  const pGrowth = `<div class="panel tight ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('growthTitle'))}</h3><span class="ps">${esc(OT('growthSub', { target: fmt(prog.target) }))} ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 372, vbH: 418 })}
+    <div class="clegend"><span><i style="background:#C0392B"></i>${esc(O('growthLgCum', '누적 연속'))}</span><span style="color:#8B2E1F">✕ ${esc(O('growthLgReset', '리셋'))}</span><span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> ${esc(O('growthLgTarget', '목표'))}</span></div></div>`;
+  // 오른쪽 나머지 패널들 (2-up = sp6)
+  const pDiscuss = `<div class="panel tight sp6"><div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="ps" style="margin-left:auto">${esc(TT('status.discussBadge', { n: ovDiscuss.count }, '{n}건'))}</span></div><div class="sw-cols">${discCols}</div></div>`;
+  const pSw = `<div class="panel tight sp6"><div class="ph"><h3>${esc(O('swTitle'))}</h3><span class="ps">${esc(O('swSub'))}</span></div><div class="sw-cols">${swCols}</div></div>`;
+  const pMatrix =`<div class="panel tight sp4 ovmx"><div class="ph"><h3>${esc(O('matrixTitle'))}</h3><span class="ps">${esc(O('matrixSub'))}</span></div>
+    <div class="ovmx-row" style="display:flex;gap:12px;align-items:center">
+      <div style="flex:1;min-width:0"><div class="matrix">${mx}</div><div class="legend-row">${mlegend}</div></div>
+      <div class="ovmx-side" style="flex:none;display:flex;flex-direction:column;align-items:center;gap:9px;border-left:1px solid var(--line-soft);padding-left:14px">
+        <div style="position:relative;flex:none;width:104px;height:104px">${sevDonut(sd)}
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:22px;font-weight:800;color:var(--navy-deep)">${sd.total || 0}</b><span style="font-size:9.5px;color:var(--muted)">${esc(O('matrixTotal', '총 고장'))}</span></div></div>
+        <div class="legend" style="width:100%">
+          <div class="li"><span class="sw" style="background:#C0392B"></span>${esc(sevLabel('Critical'))}<b>${sd.Critical || 0}</b></div>
+          <div class="li"><span class="sw" style="background:#E08600"></span>${esc(sevLabel('Major'))}<b>${sd.Major || 0}</b></div>
+          <div class="li"><span class="sw" style="background:#3F7CC4"></span>${esc(sevLabel('Minor'))}<b>${sd.Minor || 0}</b></div></div></div></div></div>`;
+  const pTop5 = `<div class="panel tight sp4"><div class="ph"><h3>${esc(O('top5Title'))}</h3><span class="ps">${esc(O('top5Sub'))}</span></div>
+    <table><tr>${(O('top5H', ['코드', '유형', '건수', '등급', '재발'])).map((h, i) => i >= 2 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>`;
+  const pFeed = `<div class="panel tight sp4"><div class="ph"><h3>${esc(O('feedTitle'))}</h3><span class="ps">${esc(O('feedSub'))}</span></div><div class="feed">${feed || `<div class="mini">${esc(O('feedEmpty', '기록 없음'))}</div>`}</div></div>`;
+  const pStab = `<div class="panel tight sp6 ovchart" onclick="openChart('stab')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('stabTitle'))}</h3><span class="ps">${esc(O('stabSub'))} ⤢</span></div>${stabChart(m.weekly || [])}
+    <div class="clegend"><span><i style="background:#8B2E1F"></i>${esc(O('stabLgErr', '에러율(좌%)'))}</span><span><i style="background:#2E89D6"></i>${esc(O('stabLgMtbf', 'MTBF(우)'))}</span></div></div>`;
+  const pErr = `<div class="panel tight sp6 ovchart" onclick="openChart('errrate')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('errTitle'))}</h3><span class="ps">${esc(O('errSub'))} ⤢</span></div>${errRateChart(m.errRate || [], { bot: 372, vbH: 418 })}
+    <div class="clegend"><span><i style="background:#E08600"></i>${esc(O('errLgRate', '기간 에러율'))}</span><span><i style="background:#8B2E1F"></i>${esc(O('errLgAvg', '누적 평균'))}</span></div></div>`;
+
+  // 신뢰성 입증 통합 박스 — 에러·재발·신뢰성 KPI 4도넛 + 합격판정 칩(미해결Crit·검증종결) + 운용등급.
+  // (에러·재발·신뢰성·운용신뢰도·양산사양합격 박스를 하나로 통합, 중복 지표 제거)
+  const pfCls = c => c === 'k-go' ? 'pf-go' : c === 'k-bad' ? 'pf-bad' : 'pf-prog';
+  const pfLabel = cls => cls === 'pf-go' ? O('stSuffice', '충족') : cls === 'pf-bad' ? O('stUnmet', '미달') : O('stProg', '진행');
+  const relDonut = k => { const p = pfCls(k.cls); return `<div class="rel-cell">${miniDonut(k.pct, SC[k.cls], k.disp + (k.unit === '%' ? '%' : ''), k.label, k.sub, 74)}<span class="pf ${p}">${esc(pfLabel(p))}</span></div>`; };
+  // 0이 목표라 게이지를 점진적으로 채울 수 없는 지표(에러율·재발·미해결) → 단계(신호등) 도넛:
+  //   링을 상태색으로 꽉 채워 초록/주황/빨강 단계만 표시, 중앙=실제값.
+  const relStage = k => { const p = pfCls(k.cls); const fill = k.cls === 'k-bad' ? 33 : k.cls === 'k-warn' ? 67 : 100; return `<div class="rel-cell">${miniDonut(fill, SC[k.cls], k.disp + (k.unit === '%' ? '%' : ''), k.label, k.sub, 74)}<span class="pf ${p}">${esc(pfLabel(p))}</span></div>`; };
+  const critC = accCs.find(c => c.id === 'openCritical') || {};
+  // 미해결 Critical 도넛 (0 목표 · 낮을수록 좋음 → 달성률 환산)
+  const openC = op.openCritical || 0, critLimit = accept.criticalOpenLimit != null ? accept.criticalOpenLimit : 0;
+  const kOpen = { cls: critC.status === 'pass' ? 'k-go' : critC.status === 'fail' ? 'k-bad' : 'k-warn',
+    label: O('kpiOpenCrit', '미해결 Critical'), disp: fmt(openC), unit: '건',
+    pct: op.verifyClosedRate != null ? op.verifyClosedRate : 100, sub: OT('kpiOpenCritSub', { rate: op.verifyClosedRate || 0 }, '종결률 {rate}% · 목표 0') };
+  const opBadge = gradeCls === 'go' ? 'b-ok' : gradeCls === 'warn' ? 'b-major' : 'b-crit';
+  const kRelBox = `<div class="kgroup rel-box"><div class="kg-h">🛡 ${esc(O('relTitle', '신뢰성 입증'))}<span class="ps" style="margin-left:8px;font-weight:600">${esc(O('relSub', '결함·품질 · 신뢰성 입증'))}</span><span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>
+    <div class="rel-groups">
+      <div class="rel-grp"><div class="rel-grp-h">${esc(O('relGrpQuality', '결함 · 품질'))}</div><div class="rel-donuts g3">${relStage(K[2])}${relStage(K[3])}${relStage(kOpen)}</div></div>
+      <div class="rel-grp"><div class="rel-grp-h">${esc(O('relGrpReliab', '신뢰성 입증'))}</div><div class="rel-donuts g2">${relDonut(K[4])}${relDonut(K[5])}</div></div>
+    </div></div>`;
+
   return `
-    <div class="sbox-h"><span class="tag">${esc(O('tag', '관제'))}</span><h2>${esc(O('title'))}</h2>
-      <span class="d">${esc(O('desc'))}</span>
-      <span class="ov-grade ${gradeCls}">${esc(O('gradePrefix', '운용 신뢰도'))} ${esc(grade)}</span></div>
-    <div class="kstrip">${kstrip}</div>
-    <div class="ct-grid">
-      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('gateTitle'))}</h3><span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px">${OT('gateGoal', { target: fmt(prog.target), limit: errLimit })}</div>
-        <div style="display:flex;align-items:center;gap:14px">
-          <div style="flex:none"><div class="big-num" style="color:var(--navy-deep);line-height:1">${fmt(prog.cum)}<span style="font-size:15px;color:var(--muted)">/${fmt(prog.target)}</span></div><div class="mini" style="margin-top:2px">${OT('gateRemain', { n: fmt(remain) })}</div></div>
-          <div style="flex:1">
-            <div class="mini" style="margin-bottom:5px">${esc(O('gateBudget', 'Error Budget'))} <b>${eb.used}</b> / ${eb.limit}</div>
-            <div class="blocks" style="margin:0">${ebBlocks}</div>
-            <div class="mini" style="margin-top:7px">${esc(ebudNote)}</div>
-          </div>
-        </div></div>
-      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('specTitle'))}</h3><span class="ps">${esc(OT('specSub', { total, passed }))}</span></div>${chk}</div>
-      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('opTitle'))}</h3><span class="ps">${esc(OT('opSub', { grade }))}</span></div><div class="donrow">${opDon}</div></div>
-
-      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('lcTitle'))}</h3><span class="ps">${esc(OT('lcSub', { n: (C.lifecycle || []).length }))}</span></div><div class="lcmini wrap">${lcm}</div></div>
-      <div class="panel tight sp3"><div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="ps" style="margin-left:auto">${esc(TT('status.discussBadge', { n: ovDiscuss.count }, '{n}건'))}</span></div><ul class="ov-disc">${ovDiscuss.items}</ul></div>
-      <div class="panel tight sp5"><div class="ph"><h3>${esc(O('swTitle'))}</h3><span class="ps">${esc(O('swSub'))}</span></div><div class="mods">${mods}</div></div>
-
-      <div class="panel tight sp4 ovmx"><div class="ph"><h3>${esc(O('matrixTitle'))}</h3><span class="ps">${esc(O('matrixSub'))}</span></div>
-        <div class="ovmx-row" style="display:flex;gap:12px;align-items:center">
-          <div style="flex:1;min-width:0"><div class="matrix">${mx}</div><div class="legend-row">${mlegend}</div></div>
-          <div class="ovmx-side" style="flex:none;display:flex;align-items:center;gap:10px;border-left:1px solid var(--line-soft);padding-left:12px">
-            <div style="position:relative;flex:none;width:104px;height:104px">${sevDonut(sd)}
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:22px;font-weight:800;color:var(--navy-deep)">${sd.total || 0}</b><span style="font-size:9.5px;color:var(--muted)">${esc(O('matrixTotal', '총 고장'))}</span></div></div>
-            <div class="legend">
-              <div class="li"><span class="sw" style="background:#C0392B"></span>Critical<b>${sd.Critical || 0}</b></div>
-              <div class="li"><span class="sw" style="background:#E08600"></span>Major<b>${sd.Major || 0}</b></div>
-              <div class="li"><span class="sw" style="background:#3F7CC4"></span>Minor<b>${sd.Minor || 0}</b></div></div></div></div></div>
-      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('top5Title'))}</h3><span class="ps">${esc(O('top5Sub'))}</span></div>
-        <table><tr>${(O('top5H', ['코드', '유형', '건수', '등급', '재발'])).map((h, i) => i >= 2 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>
-      <div class="panel tight sp4"><div class="ph"><h3>${esc(O('feedTitle'))}</h3><span class="ps">${esc(O('feedSub'))}</span></div><div class="feed">${feed || `<div class="mini">${esc(O('feedEmpty', '기록 없음'))}</div>`}</div></div>
-
-      <div class="panel tight sp3 ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('growthTitle'))}</h3><span class="ps">${esc(OT('growthSub', { target: fmt(prog.target) }))} ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 372, vbH: 418 })}
-        <div class="clegend"><span><i style="background:#C0392B"></i>${esc(O('growthLgCum', '누적 연속'))}</span><span style="color:#8B2E1F">✕ ${esc(O('growthLgReset', '리셋'))}</span><span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> ${esc(O('growthLgTarget', '목표'))}</span></div></div>
-      <div class="panel tight sp3 ovchart" onclick="openChart('mtbf')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('mtbfTitle'))}</h3><span class="ps">${esc(OT('mtbfSub', { target: fmt(m.mtbf.target) }))} ⤢</span></div>${lineChart((m.weekly || []).map(w => w.mtbf), m.mtbf.target)}</div>
-      <div class="panel tight sp3 ovchart" onclick="openChart('stab')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('stabTitle'))}</h3><span class="ps">${esc(O('stabSub'))} ⤢</span></div>${stabChart(m.weekly || [])}
-        <div class="clegend"><span><i style="background:#8B2E1F"></i>${esc(O('stabLgErr', '에러율(좌%)'))}</span><span><i style="background:#2E89D6"></i>${esc(O('stabLgMtbf', 'MTBF(우)'))}</span></div></div>
-      <div class="panel tight sp3 ovchart" onclick="openChart('errrate')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('errTitle'))}</h3><span class="ps">${esc(O('errSub'))} ⤢</span></div>${errRateChart(m.errRate || [], { bot: 372, vbH: 418 })}
-        <div class="clegend"><span><i style="background:#E08600"></i>${esc(O('errLgRate', '기간 에러율'))}</span><span><i style="background:#8B2E1F"></i>${esc(O('errLgAvg', '누적 평균'))}</span></div></div>
-    </div>`;
+    <div class="ov-2col">
+      <div class="prog-track tk-a"><div class="pt-h">🎯 ${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}</div>${kProgBox}${pGrowth}</div>
+      <div class="prog-track tk-b"><div class="pt-h">🛡 ${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}</div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
+    </div>
+    <div class="prog-track track-wide tk-c"><div class="pt-h">🔍 ${esc(O('trkFaultLabel', '고장 분석 · 위험 매트릭스 · 빈발 · 최근 알람'))}</div><div class="fault-grid">${pMatrix}${pTop5}${pFeed}</div></div>
+    <div class="prog-track track-wide tk-d"><div class="pt-h">🧭 ${esc(O('trkDevLabel', '개발 현황 · 협의 · SW 완성도'))}</div><div class="dev-grid">${pDiscuss}${pSw}</div></div>`;
 }
 
 function renderInfo(C, m) {
@@ -937,6 +1025,7 @@ function showOnly(href) {
     document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = (!isStep || s.id === id) ? '' : 'none'; });
   }
   document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === href));
+  const tbLc = $('topbar-lc'); if (tbLc) tbLc.style.display = (href === '#s-overview') ? '' : 'none';  // 개발단계는 한눈에 보기에서만
   setDetailCollapsed(href === '#s-overview');   // 한눈에 보기면 접고, 상세/개별 탭이면 펼침
   activeHref = href;
   scrollTo(0, 0);
@@ -944,6 +1033,7 @@ function showOnly(href) {
 function showAllSections() {   // 전체 보기·인쇄: 6단계 리포트 전부 펼침 (관제 요약 탭은 제외 — 중복 방지)
   TOP_SECTIONS.forEach(t => { const el = $(t); if (el) el.style.display = (t === 's-overview') ? 'none' : ''; });
   document.querySelectorAll('#s-steps section.step').forEach(s => { s.style.display = ''; });
+  const tbLc = $('topbar-lc'); if (tbLc) tbLc.style.display = 'none';   // 관제 요약 숨김 시 개발단계도 숨김
 }
 function initRouter() {
   const valid = NAV.filter(it => it.href).map(it => it.href);
@@ -966,6 +1056,7 @@ function mount() {
   applyShellText();
   const evalDate = DATA.generatedAt ? DATA.generatedAt.slice(0, 10) : '—';
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
+  { const el = $('topbar-lc'); if (el) el.innerHTML = buildTopbarLc(C); }
   $('foot-updated').textContent = T('app.updatedPrefix') + evalDate;
   $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
   $('s-status').innerHTML = renderStatus(C, m);

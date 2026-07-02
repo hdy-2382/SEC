@@ -774,9 +774,7 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
         matrix.append({"code": c, "type": type_of.get(c, ""), "severity": sev,
                        "count": n, "occ": ob, "priority": _PRIORITY.get((sev, ob), "Low")})
 
-    recur_count = sum(n - 1 for n in cnt.values() if n > 1)
-    recur_items = [{"code": c, "type": type_of.get(c, ""), "count": n}
-                   for c, n in cnt.items() if n > 1]
+    # 재발 집계(recur_count)는 조치/검증 판정 뒤에서 계산한다 — 검증완료 코드를 제외해야 하므로.
 
     # 조치/검증 (조치 후 verify_cy Cycle 무발생 → 검증완료 자동판정)
     # 검증시작일(날짜)을 적은 경우 그 날짜까지의 누적 Cycle로 환산해 vs로 사용한다.
@@ -797,6 +795,11 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
             result = "검증중"
         else:
             result = "조치중"
+        # 수동 오버라이드: '상태' 칸에 '검증완료'라고 적으면 자동 판정과 무관하게 검증완료로 인정.
+        #   (담당자가 200Cy 자동 도달 전에 직접 검증종결 처리할 때 사용)
+        manual_done = "검증완료" in _cell_to_str(a.get("status"))
+        if manual_done:
+            result = "검증완료"
         sev = sev_of.get(c, "Minor")
         if sev in ("Critical", "Major"):
             relevant += 1
@@ -807,22 +810,34 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
         act_out.append({**a, "severity": sev, "type": type_of.get(c, ""),
                         "verifyStartCycle": vs,
                         "noFailCycles": no_fail, "verifyTarget": verify_cy,
-                        "verifyProgress": round(min(1, no_fail / verify_cy) * 100) if verify_cy else 0,
-                        "verifyResult": result})
+                        "verifyProgress": 100 if manual_done else (round(min(1, no_fail / verify_cy) * 100) if verify_cy else 0),
+                        "verifyResult": result, "verifyManual": manual_done})
     verify_closed_rate = round(verified / relevant * 100) if relevant else 100
+
+    # ── 재발 집계 (검증완료 후 리셋) ──────────────────────────────
+    # 같은 코드가 2회 이상 = 재발, 코드별 (횟수-1)의 합. 단, 조치의 verifyResult 가
+    # '검증완료'(조치 후 verify_cy Cycle 무재발)인 코드는 근본원인 해결·검증종결로 보고
+    # 재발 카운트에서 제외(리셋)한다. 검증 이후 다시 터진 '재발' 코드는 검증완료가 아니므로 유지된다.
+    resolved_codes = {a["code"] for a in act_out if a.get("verifyResult") == "검증완료"}
+    recur_count = sum(n - 1 for c, n in cnt.items() if n > 1 and c not in resolved_codes)
+    recur_items = [{"code": c, "type": type_of.get(c, ""), "count": n}
+                   for c, n in cnt.items() if n > 1 and c not in resolved_codes]
+    recur_cleared = [{"code": c, "type": type_of.get(c, ""), "count": n}
+                     for c, n in cnt.items() if n > 1 and c in resolved_codes]
 
     def st(ok, prog=False):
         return "pass" if ok else ("prog" if prog else "fail")
+    # id = 안정적 식별자(순서·라벨을 config.ui.acceptance.criteria 에서 바꿔도 값/판정 매핑 유지).
     criteria = [
-        {"key": "완주", "value": f"{attempt_cycles}/{target}",
+        {"id": "complete", "key": "완주", "value": f"{attempt_cycles}/{target}",
          "status": st(attempt_cycles >= target, prog=attempt_cycles < target)},
-        {"key": f"MTBF≥{mtbf_t} @{int(conf_lv * 100)}%", "value": f"MTBF {mtbf_cur} / 신뢰수준 {round(conf_cur * 100)}%",
+        {"id": "mtbf", "key": f"MTBF≥{mtbf_t} @{int(conf_lv * 100)}%", "value": f"MTBF {mtbf_cur} / 신뢰수준 {round(conf_cur * 100)}%",
          "status": st(conf_cur >= conf_lv)},
-        {"key": "미해결 Critical=0", "value": f"{open_critical}건",
+        {"id": "openCritical", "key": "미해결 Critical=0", "value": f"{open_critical}건",
          "status": st(open_critical <= acc.get("criticalOpenLimit", 0))},
-        {"key": f"재발≤{recur_lim}", "value": f"{recur_count}건",
+        {"id": "recur", "key": f"재발≤{recur_lim}", "value": f"{recur_count}건",
          "status": st(recur_count <= recur_lim)},
-        {"key": "전 결함 검증종결", "value": f"{verified}/{relevant}",
+        {"id": "verifyClose", "key": "전 결함 검증종결", "value": f"{verified}/{relevant}",
          "status": st(relevant and verified == relevant, prog=verified < relevant)},
     ]
     passed = sum(1 for c in criteria if c["status"] == "pass")
@@ -863,7 +878,8 @@ def _compute(daily, errors, config, codes, actions, now=None) -> dict:
         "actions": act_out,
         "recurrence": {"count": recur_count,
                        "rate": round(recur_count / len(errors) * 100, 1) if errors else 0,
-                       "items": recur_items},
+                       "items": recur_items,
+                       "cleared": recur_cleared},
         "acceptance": {"criteria": criteria, "passed": passed, "total": len(criteria)},
         "opReliability": {"grade": op_grade, "recur": recur_count,
                           "openCritical": open_critical, "verifyClosedRate": verify_closed_rate},
