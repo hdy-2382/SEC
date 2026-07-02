@@ -80,14 +80,46 @@
   },
   "_swModules_readme": "group = 화면의 3열 분류(로봇/상위시스템/환경 중 하나). 열 이름/순서는 ui.overview.swGroups 에서 바꾼다. group 값을 바꾸면 해당 모듈이 그 열로 이동. (swModules 는 데이터라 수정 후 재빌드 필요)",
   "swModules": [
-    { "name": "비전 인식", "pct": 100, "group": "로봇" },
-    { "name": "경로 계획", "pct": 100, "group": "로봇" },
-    { "name": "그리퍼 제어", "pct": 90, "group": "로봇" },
-    { "name": "적재 로직", "pct": 70, "group": "로봇" },
-    { "name": "통신 / HMI", "pct": 100, "group": "상위시스템" },
-    { "name": "데이터 로깅", "pct": 60, "group": "상위시스템" },
-    { "name": "리포트 연동", "pct": 30, "group": "상위시스템" },
-    { "name": "안전 인터록", "pct": 100, "group": "환경" }
+    {
+      "name": "비전 인식",
+      "pct": 100,
+      "group": "로봇"
+    },
+    {
+      "name": "경로 계획",
+      "pct": 100,
+      "group": "로봇"
+    },
+    {
+      "name": "그리퍼 제어",
+      "pct": 90,
+      "group": "로봇"
+    },
+    {
+      "name": "적재 로직",
+      "pct": 70,
+      "group": "로봇"
+    },
+    {
+      "name": "통신 / HMI",
+      "pct": 100,
+      "group": "상위시스템"
+    },
+    {
+      "name": "데이터 로깅",
+      "pct": 60,
+      "group": "상위시스템"
+    },
+    {
+      "name": "리포트 연동",
+      "pct": 30,
+      "group": "상위시스템"
+    },
+    {
+      "name": "안전 인터록",
+      "pct": 100,
+      "group": "환경"
+    }
   ],
   "_ui_readme": "아래 ui 블록의 모든 글자는 화면에 그대로 표시됩니다. 여기만 고치면 새로고침 시 바로 반영됩니다(재빌드 불필요). {중괄호}는 자동으로 채워지는 숫자/값이니 그대로 두세요. <b>..</b> 같은 태그는 강조 표시이므로 유지하면 됩니다. steps.targetCurve = 주차별 추이의 목표 곡선 모양: linear(선형)·quad(2차)·cubic(3차) 중 하나.",
   "_edit_guide": {
@@ -151,6 +183,68 @@
       "stSuffice": "충족",
       "stUnmet": "미달",
       "stProg": "진행",
+      "_box_overview_clr": "───── 종합 클리어 (좌측 세로 1열) · 팀장 수동 편집 — status: go(초록✓)/warn(주황·n)/bad(빨강·n)/todo(회색—) · gauge: 0~100 주관적 채움% · n: 뱃지 숫자 ─────",
+      "trkExecLabel": "종합 클리어",
+      "execRoiTitle": "ROI",
+      "execRoiHint": "투자 대비 효과 (개념) · 추후 입력",
+      "clearItems": [
+        {
+          "label": "양산평가 1차",
+          "sub": "유휴설비",
+          "status": "warn",
+          "gauge": 60,
+          "n": 2
+        },
+        {
+          "label": "양산평가 2차",
+          "sub": "양산설비",
+          "status": "todo",
+          "gauge": 15,
+          "n": 0
+        },
+        {
+          "label": "양산대응",
+          "sub": "",
+          "status": "todo",
+          "gauge": 0,
+          "n": 0
+        },
+        {
+          "label": "신뢰성 분석",
+          "sub": "",
+          "status": "warn",
+          "gauge": 45,
+          "n": 1
+        },
+        {
+          "label": "에러 조치",
+          "sub": "",
+          "status": "warn",
+          "gauge": 70,
+          "n": 3
+        },
+        {
+          "label": "기술 개발",
+          "sub": "",
+          "status": "go",
+          "gauge": 100,
+          "n": 0
+        },
+        {
+          "label": "부서 협의",
+          "sub": "",
+          "status": "warn",
+          "gauge": 50,
+          "n": 2
+        },
+        {
+          "label": "기타 사항",
+          "sub": "",
+          "status": "warn",
+          "gauge": 20,
+          "n": 1
+        }
+      ],
       "_box_overview_02": "───── 02 KPI 스트립 (3그룹 × 2지표) (이 박스 글자는 여기서 수정) ─────",
       "kgProgress": "평가 진행 · 성공",
       "kgQuality": "에러 · 재발",
@@ -199,10 +293,19 @@
       "kpiOpenCritSub": "종결률 {rate}% · 목표 0",
       "_donutBands_readme": "도넛 색(초록/주황/빨강) 경계입니다. 값만 고치고 새로고침하면 반영(재빌드 불필요). errRate/mtbf/conf 숫자 = '목표의 몇 배'. 에러율(낮을수록 좋음): 목표 초과~목표×badMult=주황, 그 이상=빨강. MTBF·신뢰수준(높을수록 좋음): 목표 미달~목표×warnMult=주황, 그 미만=빨강. progress(진행률 도넛) = 진행 %기준: goAt% 이상=초록, warnAt%~goAt%=주황, warnAt% 미만=빨강. (재발·미해결은 목표 0이라 0=초록·1건+=빨강 단계, 조절 대상 아님)",
       "donutBands": {
-        "errRate": { "badMult": 3 },
-        "mtbf": { "warnMult": 0.5 },
-        "conf": { "warnMult": 0.6 },
-        "progress": { "warnAt": 33, "goAt": 66 }
+        "errRate": {
+          "badMult": 3
+        },
+        "mtbf": {
+          "warnMult": 0.5
+        },
+        "conf": {
+          "warnMult": 0.6
+        },
+        "progress": {
+          "warnAt": 33,
+          "goAt": 66
+        }
       },
       "relClosedRate": "종결률 {rate}%",
       "opTitle": "운용 신뢰도",
@@ -215,8 +318,16 @@
       "_box_overview_07": "───── 07 SW 완성도 (이 박스 글자는 여기서 수정) ─────",
       "swTitle": "소프트웨어 완성도",
       "swSub": "🟢완료 🔵진행 🟠미흡",
-      "swGroups": ["로봇", "상위시스템", "환경"],
-      "discGroups": ["안전", "운영", "기타"],
+      "swGroups": [
+        "로봇",
+        "상위시스템",
+        "환경"
+      ],
+      "discGroups": [
+        "안전",
+        "운영",
+        "기타"
+      ],
       "_box_overview_08": "───── 08 위험 매트릭스 (이 박스 글자는 여기서 수정) ─────",
       "matrixTitle": "위험 매트릭스 · 심각도 분포",
       "matrixSub": "S×O 우선순위 + 등급 분포",
@@ -232,7 +343,8 @@
         "유형",
         "건수",
         "등급",
-        "재발"
+        "재발",
+        "현황"
       ],
       "recurBadge": "재발",
       "_box_overview_10": "───── 10 최근 알람/이벤트 (이 박스 글자는 여기서 수정) ─────",
@@ -278,10 +390,30 @@
       "discussBadge": "{n}건",
       "discussEmpty": "논의 필요 항목 없음",
       "discussItems": [
-        { "topic": "비전 조명(LUX) 기준 확정", "detail": "조도 변화 구간 노출값 표준화 — 업체 협의", "tag": "긴급", "group": "운영" },
-        { "topic": "그리퍼 압력 셋포인트", "detail": "부품별 그립 압력 범위 재검토", "tag": "검토", "group": "안전" },
-        { "topic": "무고장 시험 구간 정의", "detail": "200Cy 연속 기준 삼성·업체 합의", "tag": "협의", "group": "운영" },
-        { "topic": "에러코드 마스터 추가(ERR-004~005)", "detail": "코드마스터 미정의 코드 등록 필요", "tag": "검토", "group": "기타" }
+        {
+          "topic": "비전 조명(LUX) 기준 확정",
+          "detail": "조도 변화 구간 노출값 표준화 — 업체 협의",
+          "tag": "긴급",
+          "group": "운영"
+        },
+        {
+          "topic": "그리퍼 압력 셋포인트",
+          "detail": "부품별 그립 압력 범위 재검토",
+          "tag": "검토",
+          "group": "안전"
+        },
+        {
+          "topic": "무고장 시험 구간 정의",
+          "detail": "200Cy 연속 기준 삼성·업체 합의",
+          "tag": "협의",
+          "group": "운영"
+        },
+        {
+          "topic": "에러코드 마스터 추가(ERR-004~005)",
+          "detail": "코드마스터 미정의 코드 등록 필요",
+          "tag": "검토",
+          "group": "기타"
+        }
       ],
       "_box_status_04": "───── 04 라인 레이아웃 (이 박스 글자는 여기서 수정) ─────",
       "lineTitle": "설비 평가 진행 (라인 레이아웃)",

@@ -346,7 +346,7 @@ function buildTopbarLc(C) {
     const mark = s.status === 'done' ? '✓' : (i + 1);
     return `<span class="tb-step ${cls}"><i class="tb-dot">${mark}</i>${esc(s.stage)}</span>`;
   }).join('<span class="tb-sep"></span>');
-  return `<span class="tb-lc-cap">${esc(T('overview.lcTitle', '개발 단계'))} <b>${prog}/${arr.length}</b></span>${steps}`;
+  return `<button class="tb-lc-more" onclick="openStagePopup()" title="${esc(T('overview.lcMore', '개발 진행 단계 상세'))}">🔍</button><span class="tb-lc-cap">${esc(T('overview.lcTitle', '개발 단계'))} <b>${prog}/${arr.length}</b></span>${steps}`;
 }
 
 /* 협의 및 논의 필요 항목 — config.json ui.status.discussItems (자유 편집, 재빌드 불필요).
@@ -388,7 +388,8 @@ function lineLayoutFigure(C, m) {
       </div>`;
 }
 
-function renderStatus(C, m) {
+/* 개발 진행 단계 패널 (상세 '개발 현황' + 상단 돋보기 팝업 공용) */
+function lifecycleStagePanel(C) {
   const lc = (C.lifecycle || []).map((s, i) => {
     const cls = s.status === 'done' ? 'done' : s.status === 'current' ? 'cur' : 'todo';
     const dot = s.status === 'done' ? '✓' : s.status === 'current' ? '●' : (i + 1);
@@ -397,6 +398,15 @@ function renderStatus(C, m) {
     return `<div class="lc ${cls}"><div class="dot">${dot}</div><div class="nm">${esc(s.stage)}</div><div class="stt">${esc(stt)}</div>${note}</div>`;
   }).join('');
   const cur = (C.lifecycle || []).find(s => s.status === 'current');
+  return `
+    <div class="panel" style="margin-bottom:14px">
+      <div class="ph"><h3>${esc(T('status.stageTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(T('status.stageCurrentPrefix'))}${esc(cur ? cur.stage : '—')}</span></div>
+      <div class="psub">${esc(TT('status.stageSub', { n: (C.lifecycle || []).length }))}</div>
+      <div class="lifecycle">${lc}</div>
+    </div>`;
+}
+
+function renderStatus(C, m) {
   const sw = C.swModules || [];
   const swAvg = sw.length ? Math.round(sw.reduce((a, s) => a + s.pct, 0) / sw.length) : 0;
   const mods = sw.map(s => {
@@ -413,11 +423,7 @@ function renderStatus(C, m) {
   const dm = discussModel('card');
   return `
     <div class="sbox-h"><span class="tag">${esc(T('status.tag'))}</span><h2>${esc(T('status.title'))}</h2><span class="d">${esc(T('status.desc'))}</span></div>
-    <div class="panel" style="margin-bottom:14px">
-      <div class="ph"><h3>${esc(T('status.stageTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(T('status.stageCurrentPrefix'))}${esc(cur ? cur.stage : '—')}</span></div>
-      <div class="psub">${esc(TT('status.stageSub', { n: (C.lifecycle || []).length }))}</div>
-      <div class="lifecycle">${lc}</div>
-    </div>
+    ${lifecycleStagePanel(C)}
     <div class="grid g2 status-grid" style="margin-bottom:14px">
       ${lineLayoutFigure(C, m)}
       <div class="panel">
@@ -743,11 +749,16 @@ function renderOverview(C, m, f, acc, op) {
   });
   const mlegend = (f.matrix || []).map((it, i) => `<span><b>${i + 1}</b>${esc(it.type || it.code)}</span>`).join('');
 
-  // Top5
-  const top5 = (f.top5ByCode || []).map(t =>
-    `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type || '-')}</td><td class="c">${t.count}</td>
+  // Top5 — 코드별 조치 현황(actions.verifyResult)을 현황 컬럼에 표시(상세 보기 STEP5 조치와 동일 데이터)
+  const actByCode = {}; (DATA.actions || []).forEach(a => { if (a.code && !actByCode[a.code]) actByCode[a.code] = a; });
+  const top5 = (f.top5ByCode || []).map(t => {
+    const a = actByCode[t.code];
+    const statusCell = a && a.verifyResult ? `<span class="badge ${RES_BADGE[a.verifyResult] || 'b-wait'}">${esc(a.verifyResult)}</span>` : '—';
+    return `<tr><td><b>${esc(t.code)}</b></td><td>${esc(t.type || '-')}</td><td class="c">${t.count}</td>
       <td class="c"><span class="badge ${SEV_BADGE[t.severity] || ''}">${esc(sevLabel(t.severity))}</span></td>
-      <td class="c">${t.recur ? `<span class="badge b-crit">${esc(O('recurBadge', '재발'))}</span>` : '—'}</td></tr>`).join('');
+      <td class="c">${t.recur ? `<span class="badge b-crit">${esc(O('recurBadge', '재발'))}</span>` : '—'}</td>
+      <td class="c">${statusCell}</td></tr>`;
+  }).join('');
 
   // 양산평가 합격 기준(계약 게이트) — 연속 {target} Cycle 완주 + 에러버짓
   const errLimit = accept.errorLimit || 3;
@@ -848,7 +859,7 @@ function renderOverview(C, m, f, acc, op) {
           <div class="li"><span class="sw" style="background:#E08600"></span>${esc(sevLabel('Major'))}<b>${sd.Major || 0}</b></div>
           <div class="li"><span class="sw" style="background:#3F7CC4"></span>${esc(sevLabel('Minor'))}<b>${sd.Minor || 0}</b></div></div></div></div></div>`;
   const pTop5 = `<div class="panel tight sp4"><div class="ph"><h3>${esc(O('top5Title'))}</h3><span class="ps">${esc(O('top5Sub'))}</span></div>
-    <table><tr>${(O('top5H', ['코드', '유형', '건수', '등급', '재발'])).map((h, i) => i >= 2 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>`;
+    <table><tr>${(O('top5H', ['코드', '유형', '건수', '등급', '재발', '현황'])).map((h, i) => i >= 2 ? `<th class="c">${esc(h)}</th>` : `<th>${esc(h)}</th>`).join('')}</tr>${top5}</table></div>`;
   const pFeed = `<div class="panel tight sp4"><div class="ph"><h3>${esc(O('feedTitle'))}</h3><span class="ps">${esc(O('feedSub'))}</span></div><div class="feed">${feed || `<div class="mini">${esc(O('feedEmpty', '기록 없음'))}</div>`}</div></div>`;
   const pStab = `<div class="panel tight sp6 ovchart" onclick="openChart('stab')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('stabTitle'))}</h3><span class="ps">${esc(O('stabSub'))} ⤢</span></div>${stabChart(m.weekly || [], { bot: 186, vbH: 212 })}
     <div class="clegend"><span><i style="background:#8B2E1F"></i>${esc(O('stabLgErr', '에러율(좌%)'))}</span><span><i style="background:#2E89D6"></i>${esc(O('stabLgMtbf', 'MTBF(우)'))}</span></div></div>`;
@@ -875,13 +886,38 @@ function renderOverview(C, m, f, acc, op) {
       <div class="rel-grp"><div class="rel-grp-h">${esc(O('relGrpReliab', '신뢰성 입증'))}</div><div class="rel-donuts g2">${relDonut(K[4])}${relDonut(K[5])}</div></div>
     </div></div>`;
 
+  // 종합 클리어 — 좁은 세로 1열(완주 진행 왼쪽): 상태 타일 7개(글자 내장) + ROI 자리.
+  // (템플릿: status/n은 placeholder. 추후 각 항목 리스트의 진행/미완료 개수로 배선)
+  // 종합 클리어 항목 — config.json ui.overview.clearItems 로 수동 편집(status/gauge/n). 없으면 기본값.
+  //   status: go(초록✓)/warn(주황·n)/bad(빨강·n)/todo(회색—), gauge: 0~100 주관적 채움%.
+  const clrCfg = T('overview.clearItems');
+  const clrItems = (Array.isArray(clrCfg) && clrCfg.length) ? clrCfg : [
+    { label: '양산평가 1차', sub: '유휴설비', status: 'warn', gauge: 60, n: 2 },
+    { label: '양산평가 2차', sub: '양산설비', status: 'todo', gauge: 15, n: 0 },
+    { label: '양산대응', sub: '', status: 'todo', gauge: 0, n: 0 },
+    { label: '신뢰성 분석', sub: '', status: 'warn', gauge: 45, n: 1 },
+    { label: '에러 조치', sub: '', status: 'warn', gauge: 70, n: 3 },
+    { label: '기술 개발', sub: '', status: 'go', gauge: 100, n: 0 },
+    { label: '부서 협의', sub: '', status: 'warn', gauge: 50, n: 2 },
+    { label: '기타 사항', sub: '', status: 'warn', gauge: 20, n: 1 },
+  ];
+  const clrNum = it => it.status === 'go' ? '✓' : it.status === 'todo' ? '—' : String(it.n != null ? it.n : '');
+  const clrTiles = clrItems.map(it => `<div class="clr-tile clr-${it.status || 'todo'}"><div class="clr-top"><span class="clr-label">${esc(it.label || '')}${it.sub ? `<em>${esc(it.sub)}</em>` : ''}</span><span class="clr-num">${clrNum(it)}</span></div><div class="clr-gauge"><i style="width:${Math.max(0, Math.min(100, Number(it.gauge) || 0))}%"></i></div></div>`).join('');
+
   return `
     <div class="ov-2col">
+      <div class="prog-track tk-exec"><div class="pt-h">📊 ${esc(O('trkExecLabel', '종합 클리어'))}</div>
+        <div class="clr-list">${clrTiles}</div>
+        <div class="exec-roi"><div class="exec-roi-h">💰 ${esc(O('execRoiTitle', 'ROI'))}</div><div class="exec-roi-body">${esc(O('execRoiHint', '투자 대비 효과 (개념) · 추후 입력'))}</div></div>
+      </div>
       <div class="prog-track tk-a"><div class="pt-h">🎯 ${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>${kProgBox}${pGrowth}</div>
       <div class="prog-track tk-b"><div class="pt-h">🛡 ${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}<span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
     </div>
     <div class="prog-track track-wide tk-c"><div class="pt-h">🔍 ${esc(O('trkFaultLabel', '고장 분석 · 위험 매트릭스 · 빈발 · 최근 알람'))}</div><div class="fault-grid">${pMatrix}${pTop5}${pFeed}</div></div>
-    <div class="prog-track track-wide tk-d"><div class="pt-h">🧭 ${esc(O('trkDevLabel', '개발 현황 · 협의 · SW 완성도'))}</div><div class="dev-grid">${pDiscuss}${pSw}</div></div>`;
+    <div class="dev-2col">
+      <div class="prog-track tk-d"><div class="pt-h">🤝 ${esc(O('trkDiscussLabel', '부서 협의 및 기타사항'))}</div>${pDiscuss}</div>
+      <div class="prog-track tk-dev"><div class="pt-h">🧭 ${esc(O('trkTechLabel', '기술 개발'))}</div>${pSw}</div>
+    </div>`;
 }
 
 function renderInfo(C, m) {
@@ -931,6 +967,13 @@ function openModal(i) {
 function closeModal() {
   $('modal-back').classList.remove('open');
   const modal = document.querySelector('#modal-back .modal'); if (modal) modal.classList.remove('wide');
+}
+function openStagePopup() {
+  const C = (DATA && DATA.config) || {};
+  $('modal-title').textContent = T('status.stageTitle', '개발 진행 단계');
+  $('modal-body').innerHTML = lifecycleStagePanel(C);
+  const modal = document.querySelector('#modal-back .modal'); if (modal) modal.classList.add('wide');
+  $('modal-back').classList.add('open');
 }
 function lightbox(src) { $('lightbox-img').src = src; $('lightbox').classList.add('open'); }
 
@@ -1062,7 +1105,6 @@ function mount() {
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
   { const el = $('topbar-lc'); if (el) el.innerHTML = buildTopbarLc(C); }
   { const fu = $('foot-updated'); if (fu) fu.textContent = T('app.updatedPrefix') + evalDate; }
-  { const el = $('side-line'); if (el) el.innerHTML = lineLayoutFigure(C, m); }
   $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
   $('s-status').innerHTML = renderStatus(C, m);
   $('s0').innerHTML = renderSummary(C, m, acc, op);
