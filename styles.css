@@ -15,11 +15,8 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
-  .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
-  .side{background:linear-gradient(180deg,#13335c,#0c1f3b);color:#cdd9ea;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:18px 0}
-  .side .brand{display:flex;gap:10px;align-items:center;padding:0 20px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
-  .side .brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#2E89D6,#5fb0ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
-  .side .brand b{color:#fff;font-size:13px;line-height:1.25}
+  .app{display:grid;grid-template-columns:600px 1fr;min-height:100vh}
+  .side{background:transparent;color:var(--ink);position:static;height:auto;display:flex;flex-direction:column;gap:14px;padding:18px 16px 16px}
   .nav{padding:12px 12px;display:flex;flex-direction:column;gap:2px}
   .nav .t{font-size:10px;letter-spacing:.1em;color:#7f93b0;text-transform:uppercase;padding:8px 12px 6px}
   .nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:#b8c6da;text-decoration:none;font-size:12.5px;font-weight:600}
@@ -28,14 +25,14 @@
   .nav a.active{background:linear-gradient(90deg,rgba(46,137,214,.28),rgba(46,137,214,.10));color:#fff;box-shadow:inset 2px 0 0 #2E89D6}
   .nav a.active .st{background:#2E89D6;color:#fff}
   /* 좌측 사이드바 '업무 목표' 메모 카드 (config.json ui.goals) */
-  .sgoals{margin:12px 12px 0;padding:13px 13px 14px;background:linear-gradient(180deg,rgba(46,137,214,.20),rgba(46,137,214,.08));border:1px solid rgba(95,176,236,.38);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
-  .sgoals .sg-title{font-size:12px;letter-spacing:.08em;text-align:center;color:#eaf3fc;font-weight:800;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .sgoals{margin:0;padding:14px 15px 15px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm)}
+  .sgoals .sg-title{font-size:13px;letter-spacing:.04em;color:var(--navy-deep);font-weight:800;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--line-soft)}
   .sgoals .sg-item{margin-bottom:11px}.sgoals .sg-item:last-child{margin-bottom:0}
-  .sgoals .sg-lbl{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#fff;margin-bottom:5px}
-  .sgoals .sg-lbl::before{content:"";width:4px;height:13px;border-radius:2px;background:#5fb0ec;flex:none}
-  .sgoals .sg-lbl .sg-date{font-size:11px;font-weight:600;color:#a9c4de;background:rgba(255,255,255,.08);padding:1px 7px;border-radius:20px}
-  .sgoals .sg-item p{margin:0 0 0 10px;font-size:11.5px;line-height:1.5;color:#cdd9ea;white-space:normal}
-  .side .foot{margin-top:auto;padding:14px 20px 2px;font-size:11.5px;color:#7f93b0}.side .foot .dot{color:#46d07f}
+  .sgoals .sg-lbl{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:var(--navy-deep);margin-bottom:5px}
+  .sgoals .sg-lbl::before{content:"";width:4px;height:13px;border-radius:2px;background:var(--sky);flex:none}
+  .sgoals .sg-lbl .sg-date{font-size:11px;font-weight:600;color:var(--muted);background:var(--card-alt);padding:1px 7px;border-radius:20px}
+  .sgoals .sg-item p{margin:0 0 0 10px;font-size:12px;line-height:1.5;color:var(--ink-soft);white-space:normal}
+  .side .foot{margin-top:auto;padding:12px 6px 2px;font-size:11.5px;color:var(--muted)}.side .foot .dot{color:var(--green)}
   /* '상세 보기' 접이식 하위 탭 그룹 */
   .nav-collapse{display:flex;flex-direction:column;gap:2px;overflow:hidden;max-height:600px;transition:max-height .22s ease;
     margin:2px 0 2px 13px;padding-left:12px;border-left:1px solid rgba(255,255,255,.16)}
@@ -45,6 +42,18 @@
   .nav-collapse > .t{padding-left:4px;margin-top:4px}
   .nav-caret{margin-left:auto;font-size:9px;opacity:.65;transition:transform .2s}
   .nav a.detail-open .nav-caret{transform:rotate(180deg)}
+  /* nav를 임시로 topbar에 가로 배치 (라이트 테마) */
+  .nav.nav-top{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 2px 10px;margin-bottom:8px;border-bottom:1px solid var(--line-soft)}
+  .nav-top a{color:var(--ink-soft);padding:6px 11px;font-size:12px}
+  .nav-top a .st{background:var(--card-alt);color:var(--navy-deep)}
+  .nav-top a:hover{background:var(--card-alt);color:var(--navy-deep)}
+  .nav-top a.active{background:linear-gradient(90deg,rgba(46,137,214,.16),rgba(46,137,214,.05));color:var(--navy-deep);box-shadow:inset 0 -2px 0 var(--sky)}
+  .nav-top a.active .st{background:var(--sky);color:#fff}
+  .nav-top .t{padding:6px 8px;color:var(--muted)}
+  .nav-top .nav-collapse{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;max-height:none;overflow:visible;margin:0;padding:0;border:none;transition:none}
+  .nav-top .nav-collapse.collapsed{display:none}
+  .nav-top .nav-collapse>a:not(.t)::before{display:none}
+  .nav-top .nav-caret{margin-left:4px}
 
   .main{padding:0 26px 48px;min-width:0}
   .topbar{display:flex;align-items:center;gap:16px;padding:18px 2px 12px;position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 72%,rgba(234,242,249,0));z-index:5}
@@ -359,7 +368,7 @@
   .kgroup .kg-body{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .kgroup .kg-gauges{gap:6px;align-items:start}
   /* 진행·성공 박스 — 완주 진행률(선형 바) + 우측 작은 도넛 + 성공률·에러버짓 스탯 칩 */
-  .kg-prog .pg-subh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:800;color:var(--navy-deep);letter-spacing:.02em;padding-bottom:8px;margin:10px 0 10px;border-bottom:1px solid var(--line-soft)}
+  .kg-prog .pg-subh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:14px;font-weight:800;color:var(--navy-deep);letter-spacing:.02em;padding-bottom:8px;margin:0 0 10px;border-bottom:1px solid var(--line-soft)}
   .kg-prog .pg-subh .pg-subh-note{font-size:10.5px;font-weight:600;color:var(--muted);white-space:nowrap}
   .kg-prog .pg-hero{display:flex;align-items:center;gap:18px;margin:10px 0 11px}
   .kg-prog .pg-hero-main{flex:1;min-width:0}
@@ -389,11 +398,11 @@
   .kg-prog .pg-foot{margin-top:13px;padding-top:11px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-soft);line-height:1.45}
   /* 신뢰성 입증 통합 박스 — 4도넛(충족/미달 pill) + 합격판정 칩 2개 */
   /* 신뢰성 박스 2그룹: 결함·품질(3도넛) | 신뢰성 입증(2도넛) */
-  .rel-box .rel-groups{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin:9px 0 2px;align-items:stretch}
+  .rel-box .rel-groups{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin:0 0 2px;align-items:stretch}
   .rel-box .rel-grp{display:flex;flex-direction:column;min-width:0}
   .rel-box .rel-grp>.rel-donuts{flex:1 1 auto;align-items:stretch}
   .rel-box .rel-grp+.rel-grp{border-left:1px solid var(--line-soft);padding-left:14px}
-  .rel-box .rel-grp-h{font-size:12.5px;font-weight:800;color:var(--navy-deep);letter-spacing:.02em;padding-bottom:9px;margin-bottom:12px;border-bottom:1px solid var(--line-soft)}
+  .rel-box .rel-grp-h{font-size:14px;font-weight:800;color:var(--navy-deep);letter-spacing:.02em;padding-bottom:9px;margin-bottom:12px;border-bottom:1px solid var(--line-soft)}
   .rel-box .rel-donuts{display:grid;gap:8px}
   .rel-box .rel-donuts.g3{grid-template-columns:repeat(3,1fr)}
   .rel-box .rel-donuts.g2{grid-template-columns:repeat(2,1fr)}

@@ -365,6 +365,29 @@ function discussModel(mode) {
   return { count: arr.length, items };
 }
 
+/* 설비 평가 진행(라인 레이아웃) 패널 — 한눈에 보기 왼쪽 컬럼 + 상세 '개발 현황' 공용 */
+function lineLayoutFigure(C, m) {
+  const stations = (C.line && C.line.stations) || [];
+  const curSt = stations.find(s => s.status === 'current');
+  const passed = stations.filter(s => s.status === 'pass').map(s => s.name).join('·');
+  const waiting = stations.filter(s => s.status === 'wait').map(s => s.name).join('·');
+  const cap = curSt
+    ? `${esc(T('status.lineCapEval'))} <b>${esc(curSt.name)} (${esc(curSt.role)})${m ? ' · ' + m.progress.cum + '/' + m.progress.target : ''}</b>${passed ? ' · ' + esc(passed) + ' ' + esc(T('status.lineCapPassed')) : ''}${waiting ? ' · ' + esc(waiting) + ' ' + esc(T('status.lineCapWaiting')) : ''}`
+    : esc(T('status.lineCapFallback'));
+  const img = (C.line && C.line.layoutImage) || 'data/assets/line_layout.png';
+  const Lh = T('status.layout.lineImageHeight', 300);
+  const Lfit = T('status.layout.lineImageFit', 'contain');
+  return `
+      <div class="panel">
+        <div class="ph"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
+        <div class="psub">${esc(T('status.lineSub'))}</div>
+        <div class="layout-figure">
+          <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('status.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
+          <div class="layout-cap">${cap}</div>
+        </div>
+      </div>`;
+}
+
 function renderStatus(C, m) {
   const lc = (C.lifecycle || []).map((s, i) => {
     const cls = s.status === 'done' ? 'done' : s.status === 'current' ? 'cur' : 'todo';
@@ -374,14 +397,6 @@ function renderStatus(C, m) {
     return `<div class="lc ${cls}"><div class="dot">${dot}</div><div class="nm">${esc(s.stage)}</div><div class="stt">${esc(stt)}</div>${note}</div>`;
   }).join('');
   const cur = (C.lifecycle || []).find(s => s.status === 'current');
-  const stations = (C.line && C.line.stations) || [];
-  const curSt = stations.find(s => s.status === 'current');
-  const passed = stations.filter(s => s.status === 'pass').map(s => s.name).join('·');
-  const waiting = stations.filter(s => s.status === 'wait').map(s => s.name).join('·');
-  const cap = curSt
-    ? `${esc(T('status.lineCapEval'))} <b>${esc(curSt.name)} (${esc(curSt.role)})${m ? ' · ' + m.progress.cum + '/' + m.progress.target : ''}</b>${passed ? ' · ' + esc(passed) + ' ' + esc(T('status.lineCapPassed')) : ''}${waiting ? ' · ' + esc(waiting) + ' ' + esc(T('status.lineCapWaiting')) : ''}`
-    : esc(T('status.lineCapFallback'));
-  const img = (C.line && C.line.layoutImage) || 'data/assets/line_layout.png';
   const sw = C.swModules || [];
   const swAvg = sw.length ? Math.round(sw.reduce((a, s) => a + s.pct, 0) / sw.length) : 0;
   const mods = sw.map(s => {
@@ -391,8 +406,6 @@ function renderStatus(C, m) {
   const incomplete = sw.filter(s => s.pct < 50).map(s => `${esc(s.name)}(${s.pct}%)`).join('·') || esc(T('status.swNone'));
   const inprog = sw.filter(s => s.pct >= 50 && s.pct < 100).map(s => esc(s.name)).join('·') || esc(T('status.swNone'));
   // 사진/글자 비율 — config(ui.status.layout)에서 직접 조절
-  const Lh = T('status.layout.lineImageHeight', 300);
-  const Lfit = T('status.layout.lineImageFit', 'contain');
   const swH = T('status.layout.swImageHeight', 240);
   const swP = T('status.layout.swPhotoRatio', 3);
   const swC = T('status.layout.swContentRatio', 1);
@@ -406,14 +419,7 @@ function renderStatus(C, m) {
       <div class="lifecycle">${lc}</div>
     </div>
     <div class="grid g2 status-grid" style="margin-bottom:14px">
-      <div class="panel">
-        <div class="ph"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
-        <div class="psub">${esc(T('status.lineSub'))}</div>
-        <div class="layout-figure">
-          <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('status.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
-          <div class="layout-cap">${cap}</div>
-        </div>
-      </div>
+      ${lineLayoutFigure(C, m)}
       <div class="panel">
         <div class="ph"><h3>${esc(T('status.swTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.swBadge', { n: swAvg }))}</span></div>
         <div class="psub">${esc(T('status.swSub'))}</div>
@@ -758,8 +764,7 @@ function renderOverview(C, m, f, acc, op) {
   const pgGo = band('progress', 'goAt', 66), pgWarn = band('progress', 'warnAt', 33);
   const progCls = progPct >= pgGo ? 'k-go' : progPct >= pgWarn ? 'k-warn' : 'k-bad';
   const progDonut = `<div class="pg-donut"><svg viewBox="0 0 42 42"><circle class="trk" cx="21" cy="21" r="15.9"/><circle class="arc" cx="21" cy="21" r="15.9" style="stroke:${SC[progCls]}" stroke-dasharray="${Math.min(100, progPct)} ${100 - Math.min(100, progPct)}" stroke-dashoffset="25"/></svg><div class="pg-donut-ctr"><b>${progPct}%</b></div></div>`;
-  const kProgBox = `<div class="kgroup kg-prog"><div class="kg-h">${GRP[0].icon} ${esc(GRP[0].title)}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>
-    <div class="pg-subh"><span>${esc(GRP[0].a.label)}</span><span class="pg-subh-note">${esc(OT('gateShort', { target: fmt(prog.target), limit: errLimit }, '계약 · 연속 {target}Cy · 에러 {limit}회'))}</span></div>
+  const kProgBox = `<div class="kgroup kg-prog"><div class="pg-subh"><span>${esc(GRP[0].a.label)}</span><span class="pg-subh-note">${esc(OT('gateShort', { target: fmt(prog.target), limit: errLimit }, '계약 · 연속 {target}Cy · 에러 {limit}회'))}</span></div>
     <div class="pg-hero">
       <div class="pg-hero-main">
         <div class="pg-num"><b>${fmt(prog.cum)}</b><span>/ ${fmt(prog.target)} Cy</span></div>
@@ -865,16 +870,15 @@ function renderOverview(C, m, f, acc, op) {
     label: O('kpiOpenCrit', '미해결 Critical'), disp: fmt(openC), unit: '건',
     pct: op.verifyClosedRate != null ? op.verifyClosedRate : 100, sub: OT('kpiOpenCritSub', { rate: op.verifyClosedRate || 0 }, '종결률 {rate}% · 목표 0') };
   const opBadge = gradeCls === 'go' ? 'b-ok' : gradeCls === 'warn' ? 'b-major' : 'b-crit';
-  const kRelBox = `<div class="kgroup rel-box"><div class="kg-h">🛡 ${esc(O('relTitle', '신뢰성 입증'))}<span class="ps" style="margin-left:8px;font-weight:600">${esc(O('relSub', '결함·품질 · 신뢰성 입증'))}</span><span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>
-    <div class="rel-groups">
+  const kRelBox = `<div class="kgroup rel-box"><div class="rel-groups">
       <div class="rel-grp"><div class="rel-grp-h">${esc(O('relGrpQuality', '결함 · 품질'))}</div><div class="rel-donuts g3">${relStage(K[2])}${relStage(K[3])}${relStage(kOpen)}</div></div>
       <div class="rel-grp"><div class="rel-grp-h">${esc(O('relGrpReliab', '신뢰성 입증'))}</div><div class="rel-donuts g2">${relDonut(K[4])}${relDonut(K[5])}</div></div>
     </div></div>`;
 
   return `
     <div class="ov-2col">
-      <div class="prog-track tk-a"><div class="pt-h">🎯 ${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}</div>${kProgBox}${pGrowth}</div>
-      <div class="prog-track tk-b"><div class="pt-h">🛡 ${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}</div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
+      <div class="prog-track tk-a"><div class="pt-h">🎯 ${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>${kProgBox}${pGrowth}</div>
+      <div class="prog-track tk-b"><div class="pt-h">🛡 ${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}<span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
     </div>
     <div class="prog-track track-wide tk-c"><div class="pt-h">🔍 ${esc(O('trkFaultLabel', '고장 분석 · 위험 매트릭스 · 빈발 · 최근 알람'))}</div><div class="fault-grid">${pMatrix}${pTop5}${pFeed}</div></div>
     <div class="prog-track track-wide tk-d"><div class="pt-h">🧭 ${esc(O('trkDevLabel', '개발 현황 · 협의 · SW 완성도'))}</div><div class="dev-grid">${pDiscuss}${pSw}</div></div>`;
@@ -1057,7 +1061,8 @@ function mount() {
   const evalDate = DATA.generatedAt ? DATA.generatedAt.slice(0, 10) : '—';
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
   { const el = $('topbar-lc'); if (el) el.innerHTML = buildTopbarLc(C); }
-  $('foot-updated').textContent = T('app.updatedPrefix') + evalDate;
+  { const fu = $('foot-updated'); if (fu) fu.textContent = T('app.updatedPrefix') + evalDate; }
+  { const el = $('side-line'); if (el) el.innerHTML = lineLayoutFigure(C, m); }
   $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
   $('s-status').innerHTML = renderStatus(C, m);
   $('s0').innerHTML = renderSummary(C, m, acc, op);
