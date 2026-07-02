@@ -271,37 +271,14 @@ const RES_BADGE = { '검증완료': 'b-ok', '검증중': 'b-prog', '조치중': 
 /* ── 사이드 내비게이션 (라벨은 ui.nav, 아이콘/링크는 고정) ── */
 const NAV = [
   { href: '#s-overview', icon: '◉', key: 'overview', label: '한눈에 보기', active: true },
-  { href: '#all', icon: '▤', key: 'all', label: '상세 보기' },
-  { href: '#s-status', icon: '▦', key: 'status' },
-  { href: '#s0', icon: '▣', key: 'summary' },
-  { group: 'stepsGroup', href: '#s-steps' },
-  { href: '#s1', icon: '1', key: 'step1' },
-  { href: '#s2', icon: '2', key: 'step2' },
-  { href: '#s3', icon: '3', key: 'step3' },
-  { href: '#s4', icon: '4', key: 'step4' },
-  { href: '#s5', icon: '5', key: 'step5' },
-  { href: '#s6', icon: '6', key: 'step6' },
-  { group: 'refGroup' },
-  { href: '#s-info', icon: 'ℹ', key: 'info' },
+  { href: '#all', icon: '▤', key: 'all', label: '평가 상세 내역' },
 ];
 function buildNav() {
-  // '상세 보기'(all)를 접이식 헤더로, 그 아래 개별 현황~프로젝트 정보를 #detail-group 으로 묶어 숨김/펼침
-  let html = '', detailOpen = false;
+  // 한눈에 보기 / 평가 상세 내역 — 각각 단일 페이지 링크(트리 없음)
+  let html = '';
   NAV.forEach(it => {
-    if (it.key === 'all') {
-      html += `<a href="${it.href}"${it.active ? ' class="active"' : ''} data-detailtoggle="1"><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}<span class="nav-caret">▾</span></a>`;
-      html += `<div class="nav-collapse collapsed" id="detail-group">`;
-      detailOpen = true;
-      return;
-    }
-    if (it.group)   // 그룹 라벨: href 있으면 클릭 가능(해당 그룹 전체 보기), 없으면 단순 라벨
-      html += it.href
-        ? `<a href="${it.href}" class="t t-group">${esc(T('nav.' + it.group))}</a>`
-        : `<div class="t">${esc(T('nav.' + it.group))}</div>`;
-    else
-      html += `<a href="${it.href}"${it.active ? ' class="active"' : ''}><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}</a>`;
+    html += `<a href="${it.href}"${it.active ? ' class="active"' : ''}><span class="st">${esc(it.icon)}</span> ${esc(T('nav.' + it.key, it.label || ''))}</a>`;
   });
-  if (detailOpen) html += `</div>`;
   return html;
 }
 // '상세 보기' 하위 탭 그룹 펼침/접힘 (한눈에 보기 활성 시 접힘)
@@ -354,14 +331,14 @@ function buildTopbarLc(C) {
    mode='card'(개발 현황: 가운데 정렬 카드) | 'list'(한눈에 보기: 심플 리스트). status/overview 공용. */
 function discussModel(mode) {
   const DTAG = { '긴급': 't-urgent', '검토': 't-review', '협의': 't-discuss', '진행': 't-review', '완료': 't-done', '보류': 't-hold' };
-  const arr = Array.isArray(T('status.discussItems')) ? T('status.discussItems') : [];
+  const arr = Array.isArray(T('overview.discussItems')) ? T('overview.discussItems') : [];
   const items = arr.map(it => {
     const topic = esc(it.topic || it.title || '');
     const tag = it.tag ? `<span class="disc-tag ${DTAG[it.tag] || 't-discuss'}">${esc(it.tag)}</span>` : '';
     if (mode === 'list') return `<li class="ovd-it">${tag}<span class="ovd-t">${topic}</span></li>`;
     const detail = it.detail ? `<div class="disc-d">${esc(it.detail)}</div>` : '';
     return `<li class="disc-it">${tag}<div class="disc-t">${topic}</div>${detail}</li>`;
-  }).join('') || `<li class="${mode === 'list' ? 'ovd-empty' : 'disc-empty'}">${esc(T('status.discussEmpty', '논의 필요 항목 없음'))}</li>`;
+  }).join('') || `<li class="${mode === 'list' ? 'ovd-empty' : 'disc-empty'}">${esc(T('overview.discussEmpty', '논의 필요 항목 없음'))}</li>`;
   return { count: arr.length, items };
 }
 
@@ -372,17 +349,17 @@ function lineLayoutFigure(C, m) {
   const passed = stations.filter(s => s.status === 'pass').map(s => s.name).join('·');
   const waiting = stations.filter(s => s.status === 'wait').map(s => s.name).join('·');
   const cap = curSt
-    ? `${esc(T('status.lineCapEval'))} <b>${esc(curSt.name)} (${esc(curSt.role)})${m ? ' · ' + m.progress.cum + '/' + m.progress.target : ''}</b>${passed ? ' · ' + esc(passed) + ' ' + esc(T('status.lineCapPassed')) : ''}${waiting ? ' · ' + esc(waiting) + ' ' + esc(T('status.lineCapWaiting')) : ''}`
-    : esc(T('status.lineCapFallback'));
+    ? `${esc(T('overview.lineCapEval'))} <b>${esc(curSt.name)} (${esc(curSt.role)})${m ? ' · ' + m.progress.cum + '/' + m.progress.target : ''}</b>${passed ? ' · ' + esc(passed) + ' ' + esc(T('overview.lineCapPassed')) : ''}${waiting ? ' · ' + esc(waiting) + ' ' + esc(T('overview.lineCapWaiting')) : ''}`
+    : esc(T('overview.lineCapFallback'));
   const img = (C.line && C.line.layoutImage) || 'data/assets/line_layout.png';
-  const Lh = T('status.layout.lineImageHeight', 300);
-  const Lfit = T('status.layout.lineImageFit', 'contain');
+  const Lh = T('overview.lineImageHeight', 300);
+  const Lfit = T('overview.lineImageFit', 'contain');
   return `
       <div class="panel">
-        <div class="ph"><h3>${esc(T('status.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.lineBadge', { n: stations.length }))}</span></div>
-        <div class="psub">${esc(T('status.lineSub'))}</div>
+        <div class="ph"><h3>${esc(T('overview.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('overview.lineBadge', { n: stations.length }))}</span></div>
+        <div class="psub">${esc(T('overview.lineSub'))}</div>
         <div class="layout-figure">
-          <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('status.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
+          <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('overview.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
           <div class="layout-cap">${cap}</div>
         </div>
       </div>`;
@@ -400,140 +377,10 @@ function lifecycleStagePanel(C) {
   const cur = (C.lifecycle || []).find(s => s.status === 'current');
   return `
     <div class="panel" style="margin-bottom:14px">
-      <div class="ph"><h3>${esc(T('status.stageTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(T('status.stageCurrentPrefix'))}${esc(cur ? cur.stage : '—')}</span></div>
-      <div class="psub">${esc(TT('status.stageSub', { n: (C.lifecycle || []).length }))}</div>
+      <div class="ph"><h3>${esc(T('overview.stageTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(T('overview.stageCurrentPrefix'))}${esc(cur ? cur.stage : '—')}</span></div>
+      <div class="psub">${esc(TT('overview.stageSub', { n: (C.lifecycle || []).length }))}</div>
       <div class="lifecycle">${lc}</div>
     </div>`;
-}
-
-function renderStatus(C, m) {
-  const sw = C.swModules || [];
-  const swAvg = sw.length ? Math.round(sw.reduce((a, s) => a + s.pct, 0) / sw.length) : 0;
-  const mods = sw.map(s => {
-    const col = s.pct >= 100 ? 'var(--green)' : s.pct >= 50 ? 'var(--major)' : '#cdd6e2';
-    return `<div class="mod"><span class="nm">${esc(s.name)}</span><div class="bar"><i style="width:${s.pct}%;background:${col}"></i></div><span class="pc">${s.pct}%</span></div>`;
-  }).join('');
-  const incomplete = sw.filter(s => s.pct < 50).map(s => `${esc(s.name)}(${s.pct}%)`).join('·') || esc(T('status.swNone'));
-  const inprog = sw.filter(s => s.pct >= 50 && s.pct < 100).map(s => esc(s.name)).join('·') || esc(T('status.swNone'));
-  // 사진/글자 비율 — config(ui.status.layout)에서 직접 조절
-  const swH = T('status.layout.swImageHeight', 240);
-  const swP = T('status.layout.swPhotoRatio', 3);
-  const swC = T('status.layout.swContentRatio', 1);
-  const swFit = T('status.layout.swImageFit', 'contain');
-  const dm = discussModel('card');
-  return `
-    <div class="sbox-h"><span class="tag">${esc(T('status.tag'))}</span><h2>${esc(T('status.title'))}</h2><span class="d">${esc(T('status.desc'))}</span></div>
-    ${lifecycleStagePanel(C)}
-    <div class="grid g2 status-grid" style="margin-bottom:14px">
-      ${lineLayoutFigure(C, m)}
-      <div class="panel">
-        <div class="ph"><h3>${esc(T('status.swTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.swBadge', { n: swAvg }))}</span></div>
-        <div class="psub">${esc(T('status.swSub'))}</div>
-        <div class="sw-2col" style="grid-template-columns:${swP}fr ${swC}fr">
-          <div class="sw-photo" style="height:${swH}px"><img src="${esc(T('status.swImage', 'data/assets/sw_status.png'))}" alt="${esc(T('status.swTitle'))}" style="object-fit:${esc(swFit)}" onerror="this.style.display='none';this.parentNode.classList.add('empty')"><span class="ph">${esc(T('status.swImageHint', '사진 영역'))}</span></div>
-          <div class="sw-content">
-            <div class="mods">${mods}</div>
-            <div class="mini" style="margin-top:10px">${TT('status.swFoot', { incomplete: `<b>${incomplete}</b>`, inprog })}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('status.discussBadge', { n: dm.count }, '{n}건'))}</span></div>
-      <div class="psub">${esc(T('status.discussSub', '업체·유관부서와 확정 필요한 항목'))}</div>
-      <ul class="disc-list">${dm.items}</ul>
-    </div>`;
-}
-
-function renderPeriod(C) {
-  const p = C.project || {};
-  if (!p.startDate || !p.endDate) return '';
-  const s = new Date(p.startDate), e = new Date(p.endDate);
-  const today = DATA.generatedAt ? new Date(DATA.generatedAt.slice(0, 10)) : new Date();
-  const tot = (e - s) / 86400000, el = (today - s) / 86400000;
-  const pct = tot > 0 ? Math.max(0, Math.min(100, el / tot * 100)) : 0;
-  const dplus = Math.max(0, Math.round(el));
-  return `<div class="hperiod">
-    <div class="hp-h">${esc(T('period.label'))} <span>${fmtMD(s)} ~ ${fmtMD(e)} · ${esc(TT('period.summary', { tot: Math.round(tot), dplus, pct: Math.round(pct) }))}</span></div>
-    <div class="hp-bar">
-      <i style="width:${pct.toFixed(1)}%"></i>
-      <span class="hp-dot" style="left:${pct.toFixed(1)}%"></span>
-      <span class="hp-now" style="left:${pct.toFixed(1)}%">${esc(TT('period.today', { md: fmtMD(today) }))}</span>
-      <span class="hp-s">${fmtMD(s)}</span>
-      <span class="hp-e">${fmtMD(e)}</span>
-    </div>
-  </div>`;
-}
-
-function renderSummary(C, m, acc, op) {
-  const errLimit = (C.acceptance && C.acceptance.errorLimit) || 3;
-  const eb = m.errorBudget || {
-    used: m.errorsTotal, limit: errLimit, resets: 0, lifetimeErrors: m.errorsTotal,
-    dailyAvg: DATA.daily.length ? Math.round(m.errorsTotal / DATA.daily.length * 100) / 100 : 0,
-    weeklyAvg: m.weekly.length ? Math.round(m.errorsTotal / m.weekly.length * 100) / 100 : 0,
-  };
-  const conf = m.confidence;
-  const critById = id => ((DATA.acceptance && DATA.acceptance.criteria) || []).find(c => c.id === id);
-  const goalCrit = critById('complete') || acc.criteria[0] || {}, goalConf = critById('mtbf') || acc.criteria[1] || {};
-  const accCs = acceptanceCriteria();
-  const accPassed = accCs.filter(c => c.status === 'pass').length, accTotal = accCs.length;
-  // 신뢰성 입증 목표 달성률 도넛 (입증단계·신뢰수준·MTBF·기간에러율). 에러율은 lower-better → 목표/현재.
-  const recentRate = (m.recentWindow || {}).rate || 0, errTgt = m.errRateTarget;
-  const dMtbf = m.mtbf.target ? m.mtbf.current / m.mtbf.target * 100 : 0;
-  const dErr = errTgt != null ? (recentRate > 0 ? Math.min(100, errTgt / recentRate * 100) : 100) : 0;
-  const levelPct = Math.round(conf.level * 100);
-  const dConf = levelPct ? conf.currentPct / levelPct * 100 : 0;
-  const succ = m.successRate || 0;
-  const remain = Math.max(0, m.progress.target - m.progress.cum);
-  const ebudNote = eb.resets ? TT('summary.ebudReset', { n: eb.resets, total: eb.lifetimeErrors }) : TT('summary.ebudNoReset', { total: eb.lifetimeErrors });
-  return `
-    <div class="sbox-h"><span class="tag">${esc(T('summary.tag'))}</span><h2>${esc(T('summary.title'))}</h2><span class="d">${esc(T('summary.desc'))}</span></div>
-    <div class="goals">
-      <div class="goal primary">
-        <span class="gstatus ${goalCrit.status === 'pass' ? 'gs-go' : 'gs-warn'}">${esc(goalCrit.status === 'pass' ? T('summary.goalPrimaryDone') : T('summary.goalPrimaryProg'))}</span>
-        <div class="gl">${esc(TT('summary.goalPrimaryTitle', { end: (C.project && C.project.endDate) || '' }))}</div>
-        <div class="gt">${esc(TT('summary.goalPrimaryGoal', { target: m.progress.target, limit: errLimit }))}</div>
-        <div class="pmain">
-          <div class="hdonut sm">${heroDonut(m.progress.pct, 104)}<div class="ctr"><b>${m.progress.pct}%</b><span>${esc(T('summary.heroDonutSub'))}</span></div></div>
-          <div class="pstats">
-            <div class="s"><div class="l">${esc(T('summary.pCum'))}</div><div class="v">${m.progress.cum}<small>/${m.progress.target}</small></div></div>
-            <div class="s"><div class="l">${esc(T('summary.streakLabel'))}</div><div class="v">${remain}<small>Cy</small></div></div>
-            <div class="s"><div class="l">${esc(T('summary.heroThroughput'))}</div><div class="v">${m.throughput.daily}<small>회/일</small></div></div>
-          </div>
-        </div>
-        <div class="prow">
-          ${renderPeriod(C)}
-          <div class="pebud">
-            <div class="lbl">${esc(T('summary.ebudLabel'))}</div>
-            <div class="num">${eb.used} <span class="of">${esc(TT('summary.ebudOf', { limit: eb.limit }))}</span></div>
-            <div class="blocks" style="margin:8px 0 7px">${Array.from({ length: eb.limit }, (_, i) => `<i class="${i < eb.used ? 'used' : 'free'}"></i>`).join('')}</div>
-            <div class="mini" style="${eb.resets ? 'color:#ffce86' : 'color:#9fb6d4'}">${esc(ebudNote)}</div>
-          </div>
-        </div>
-        <div class="gnote">${esc(TT('summary.goalPrimaryNote', { errors: m.errorsTotal, remain }))}</div>
-      </div>
-      <div class="goal secondary">
-        <span class="gstatus gs-cond">${accPassed}/${accTotal} · ${esc(goalConf.status === 'pass' ? T('summary.goalSecondaryPass') : T('summary.goalSecondaryCond'))}</span>
-        <div class="gl">${esc(T('summary.goalSecondaryTitle'))}</div>
-        <div class="gt">${esc(TT('summary.goalSecondaryGoal', { mtbf: m.mtbf.target, conf: Math.round(conf.level * 100), err: m.errRateTarget }))}</div>
-        <div style="display:flex;gap:8px;margin:12px 0 8px;justify-content:space-around">
-          ${miniDonut(dConf, '#C0392B', `${conf.currentPct}%`, T('summary.donutConf'), TT('summary.donutConfSub', { t: levelPct }), 96)}
-          ${miniDonut(dMtbf, '#2E89D6', `${m.mtbf.current}`, T('summary.donutMtbf'), TT('summary.donutMtbfSub', { t: m.mtbf.target }), 96)}
-          ${miniDonut(dErr, '#E08600', `${recentRate}%`, T('summary.donutErrRate'), TT('summary.donutErrRateSub', { t: errTgt }), 96)}
-        </div>
-        <div class="srow" style="border-top:1px solid var(--line);padding-top:9px;margin-top:0">
-          <span>${esc(T('summary.kpiSuccess'))} <b>${succ.toFixed(1)}%</b> <span class="mini">(성공 ${fmt(m.success)}·실패 ${fmt(m.errorsTotal)})</span></span>
-          <span>최근 에러율 <b>${recentRate}%</b> <span class="mini">목표 &lt;${errTgt}%</span></span>
-        </div>
-        <div class="srow">${T('summary.opRel')} <span class="badge ${op.grade === '양호' ? 'b-ok' : op.grade === '주의' ? 'b-major' : 'b-prog'}">${esc(op.grade)}</span> ${TT('summary.opRelDetail', { recur: op.recur, closed: op.verifyClosedRate, open: op.openCritical })}</div>
-        <div class="gnote" style="color:var(--muted)">${esc(T('summary.goalSecondaryNote'))}</div>
-      </div>
-    </div>
-    <div class="goals-cap">
-      <span>${T('summary.capPrimary')}</span>
-      <span>${T('summary.capSecondary')}</span>
-    </div>
-    `;
 }
 
 function stepHead(no, title, q, chip, cls) {
@@ -610,14 +457,6 @@ function renderSteps(C, m, f, acc, op) {
   return `
     <div class="sbox-h"><span class="tag">${esc(T('steps.tag'))}</span><h2>${esc(T('steps.title'))}</h2><span class="d">${esc(T('steps.desc'))}</span></div>
 
-    <section class="step" id="s1">
-      ${stepHead(1, T('steps.s1Title'), T('steps.s1Q'), TT('steps.s1Chip', { passed: accPassed, total: accTotal }), 'prog')}
-      <div class="step-body"><div class="panel">
-        <div class="ph"><h3>${esc(T('steps.s1PanelTitle'))}</h3><span class="ps">${esc(T('steps.s1PanelSub'))}</span></div>
-        <div class="crit-grid">${crit}</div>
-      </div></div>
-    </section>
-
     <section class="step" id="s2">
       ${stepHead(2, T('steps.s2Title'), T('steps.s2Q'), T('steps.s2Chip'), 'prog')}
       <div class="step-body">
@@ -631,40 +470,6 @@ function renderSteps(C, m, f, acc, op) {
           <div class="panel"><div class="ph"><h3>${esc(T('steps.recurTitle'))}</h3><span class="ps">${esc(T('steps.recurSub'))}</span></div><div class="stat-big"><b>${DATA.recurrence.count}</b><span>${esc(TT('steps.recurUnit', { rate: DATA.recurrence.rate }))}</span></div><div class="mini">${DATA.recurrence.items.map(it => esc(it.code) + '(' + it.count + ')').join(', ') || esc(T('steps.recurNone'))}</div>${(DATA.recurrence.cleared || []).length ? `<div class="mini" style="margin-top:6px;color:var(--green)">✅ ${esc(TT('steps.recurCleared', { list: DATA.recurrence.cleared.map(it => it.code).join(', ') }, '검증완료로 해제: {list}'))}</div>` : ''}<div class="mini" style="margin-top:6px">${esc(T('steps.recurWarn'))}</div></div>
         </div>
       </div>
-    </section>
-
-    <section class="step" id="s3">
-      ${stepHead(3, T('steps.s3Title'), T('steps.s3Q'), T('steps.s3Chip'), 'pass')}
-      <div class="step-body">
-        <div class="panel"><div class="ph"><h3>${esc(T('steps.growthTitle'))}</h3><span class="ps">${esc(TT('steps.growthSub', { target: m.progress.target }))}</span></div>
-          <div id="weekly-chart">${weeklyChart(m.weekly, m.progress.target)}</div>
-          <div class="clegend">${growthLegendHtml}<button id="weekly-scale-btn" class="btn" onclick="toggleWeeklyScale()" style="margin-left:auto;padding:3px 10px;font-size:11px">${esc(T('steps.autoScaleLabel', 'Auto scale'))}: ${weeklyAuto ? 'ON' : 'OFF'}</button></div></div>
-        <div class="grid g2 mt">
-          <div class="panel"><div class="ph"><h3>${esc(TT('steps.mtbfTitle', { target: m.mtbf.target }))}</h3><span class="ps">${esc(T('steps.mtbfSub'))}</span></div>${lineChart(m.weekly.map(w => w.mtbf), m.mtbf.target)}</div>
-          <div class="panel"><div class="ph"><h3>${esc(T('steps.errRateTitle'))}</h3><span class="ps">${esc(T('steps.errRateSub'))}</span></div>
-            ${recentErrBadge(m.recentWindow)}
-            ${errRateChart(m.errRate || [])}
-            <div class="clegend">${(T('steps.errRateLegend', [])).map((lg, i) => `<span><i style="background:${['#E08600', '#8B2E1F'][i]}"></i>${esc(lg)}</span>`).join('')}</div></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="step" id="s4">
-      ${stepHead(4, T('steps.s4Title'), T('steps.s4Q'), `${conf.currentPct}% ${conf.current >= conf.level ? '≥' : '<'} ${levelPct}%`, conf.current >= conf.level ? 'pass' : 'fail')}
-      <div class="step-body"><div class="panel">
-        <div class="ph"><h3>${esc(T('steps.s4PanelTitle'))}</h3><span class="ps">${esc(T('steps.s4PanelSub'))}</span></div>
-        <div class="crit-grid" style="margin-bottom:14px">${s4metrics}</div>
-        <div class="demo">
-          <div>
-            <div class="big">${TT('steps.s4Goal', { mtbf: m.mtbf.target, level: levelPct })}</div>
-            <div class="gauge-wrap"><div class="glabel"><span>${TT('steps.s4Gauge1', { cur: conf.currentCycles })}</span><span>${TT('steps.s4Gauge2', { req: conf.requiredForLevel })}</span></div>
-              <div class="prog-bar" style="height:14px"><i style="width:${gw}%;background:linear-gradient(90deg,#2E89D6,#5fb0ec)"></i></div></div>
-            <div class="big">${TT('steps.s4Result', { pct: conf.currentPct })}${conf.currentCycles < conf.requiredForLevel ? TT('steps.s4Need', { need: conf.requiredForLevel - conf.currentCycles }) : T('steps.s4Met')}</div>
-            <div class="formula">${T('steps.s4Formula')}</div>
-          </div>
-          <table class="ctable"><tr><th>${esc(s4TableH[0] || '')}</th><th>${esc(s4TableH[1] || '')}</th><th class="c">${esc(tpl(s4TableH[2] || '', { cur: conf.currentCycles }))}</th></tr>${ctable}</table>
-        </div>
-      </div></div>
     </section>
 
     <section class="step" id="s5">
@@ -813,7 +618,7 @@ function renderOverview(C, m, f, acc, op) {
   const ovDiscuss = discussModel('list');
   // 협의 항목을 group(안전/운영/기타)별 3열로. 항목의 group 필드로 분류(없으면 마지막 열=기타).
   const DTAG_OV = { '긴급': 't-urgent', '검토': 't-review', '협의': 't-discuss', '진행': 't-review', '완료': 't-done', '보류': 't-hold' };
-  const discArr = Array.isArray(T('status.discussItems')) ? T('status.discussItems') : [];
+  const discArr = Array.isArray(T('overview.discussItems')) ? T('overview.discussItems') : [];
   const discGroups = Array.isArray(O('discGroups')) ? O('discGroups') : ['안전', '운영', '기타'];
   const discItemHtml = it => {
     const tag = it.tag ? `<span class="disc-tag ${DTAG_OV[it.tag] || 't-discuss'}">${esc(it.tag)}</span>` : '';
@@ -846,7 +651,7 @@ function renderOverview(C, m, f, acc, op) {
   const pGrowth = `<div class="panel tight ovchart" onclick="openChart('weekly')" title="클릭하면 크게 보기"><div class="ph"><h3>${esc(O('growthTitle'))}</h3><span class="ps">${esc(OT('growthSub', { target: fmt(prog.target) }))} ⤢</span></div>${weeklyChart(m.weekly || [], prog.target, { bot: 420, vbH: 470 })}
     <div class="clegend"><span><i style="background:#C0392B"></i>${esc(O('growthLgCum', '누적 연속'))}</span><span style="color:#8B2E1F">✕ ${esc(O('growthLgReset', '리셋'))}</span><span><span style="display:inline-block;width:16px;border-top:2px dashed #1565C0;vertical-align:middle"></span> ${esc(O('growthLgTarget', '목표'))}</span></div></div>`;
   // 오른쪽 나머지 패널들 (2-up = sp6)
-  const pDiscuss = `<div class="panel tight sp6"><div class="ph"><h3>${esc(T('status.discussTitle', '협의 및 논의 필요'))}</h3><span class="ps" style="margin-left:auto">${esc(TT('status.discussBadge', { n: ovDiscuss.count }, '{n}건'))}</span></div><div class="sw-cols">${discCols}</div></div>`;
+  const pDiscuss = `<div class="panel tight sp6"><div class="ph"><h3>${esc(T('overview.discussTitle', '협의 및 논의 필요'))}</h3><span class="ps" style="margin-left:auto">${esc(TT('overview.discussBadge', { n: ovDiscuss.count }, '{n}건'))}</span></div><div class="sw-cols">${discCols}</div></div>`;
   const pSw = `<div class="panel tight sp6"><div class="ph"><h3>${esc(O('swTitle'))}</h3><span class="ps">${esc(O('swSub'))}</span></div><div class="sw-cols">${swCols}</div></div>`;
   const pMatrix =`<div class="panel tight sp4 ovmx"><div class="ph"><h3>${esc(O('matrixTitle'))}</h3><span class="ps">${esc(O('matrixSub'))}</span></div>
     <div class="ovmx-row" style="display:flex;gap:12px;align-items:center">
@@ -920,35 +725,6 @@ function renderOverview(C, m, f, acc, op) {
     </div>`;
 }
 
-function renderInfo(C, m) {
-  const p = C.project || {}, a = C.acceptance || {};
-  const stations = (C.line && C.line.stations) || [];
-  const stationStr = stations.map(s => s.name + '(' + s.role + ')').join('·');
-  return `
-    <div class="sbox-h"><span class="tag">${esc(T('info.tag'))}</span><h2>${esc(T('info.title'))}</h2><span class="d">${esc(T('info.desc'))}</span></div>
-    <div class="grid g2">
-      <div class="panel"><div class="ph"><h3>${esc(T('info.overviewTitle'))}</h3><span class="ps">${esc(T('info.overviewSub'))}</span></div>
-        <table>
-          <tr><th style="width:110px">${esc(T('info.rowProject'))}</th><td>${esc(p.name || '')}</td></tr>
-          <tr><th>${esc(T('info.rowTarget'))}</th><td>${esc(TT('info.rowTargetVal', { n: stations.length, stations: stationStr }))}</td></tr>
-          <tr><th>${esc(T('info.rowPeriod'))}</th><td>${esc(p.startDate || '')} ~ ${esc(p.endDate || '')}</td></tr>
-          <tr><th>${esc(T('info.rowOwner'))}</th><td>${esc(p.team || '')}${p.department ? ' · ' + esc(p.department) : ''}</td></tr>
-          <tr><th>${esc(T('info.rowSource'))}</th><td>${esc(T('info.rowSourceVal'))}</td></tr>
-        </table>
-      </div>
-      <div class="panel"><div class="ph"><h3>${esc(T('info.critTitle'))}</h3><span class="ps">${esc(T('info.critSub'))}</span></div>
-        <table>
-          <tr><th style="width:120px">${esc(T('info.critPass'))}</th><td>${TT('info.critPassVal', { target: a.targetCycle || m.progress.target, limit: a.errorLimit || 3 })}</td></tr>
-          <tr><th>${esc(T('info.critRel'))}</th><td>${TT('info.critRelVal', { mtbf: a.mtbfTargetCycle || 100, conf: Math.round((a.confidenceLevel || 0.8) * 100), req: m.confidence.requiredForLevel })}</td></tr>
-          <tr><th>${esc(T('info.critVerify'))}</th><td>${TT('info.critVerifyVal', { verify: a.verifyCycle || 200 })}</td></tr>
-          <tr><th>${esc(T('info.critRecur'))}</th><td>${T('info.critRecurVal')}</td></tr>
-          <tr><th>${esc(T('info.critMethod'))}</th><td>${T('info.critMethodVal')}</td></tr>
-        </table>
-      </div>
-    </div>`;
-}
-
-/* ── 에러 상세 모달 ── */
 function openModal(i) {
   const e = DATA.errors[i]; if (!e) return;
   $('modal-title').textContent = TT('modal.titleFull', { code: e.code || '', no: e.no });
@@ -970,7 +746,7 @@ function closeModal() {
 }
 function openStagePopup() {
   const C = (DATA && DATA.config) || {};
-  $('modal-title').textContent = T('status.stageTitle', '개발 진행 단계');
+  $('modal-title').textContent = T('overview.stageTitle', '개발 진행 단계');
   $('modal-body').innerHTML = lifecycleStagePanel(C);
   const modal = document.querySelector('#modal-back .modal'); if (modal) modal.classList.add('wide');
   $('modal-back').classList.add('open');
@@ -1040,9 +816,9 @@ function goalsModel() {
   const mon = new Date(ref); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));   // 그 주의 월요일
   const sun = new Date(mon); sun.setDate(sun.getDate() + 6);                          // 일요일
   return {
-    title: T('goals.title', '업무 목표'),
-    monthLabel: T('goals.monthLabel', '이번 달'), monthTag: `${ref.getMonth() + 1}월`, month: T('goals.month'),
-    weekLabel: T('goals.weekLabel', '이번 주'), weekTag: `${fmtMD(mon)}–${fmtMD(sun)}`, week: T('goals.week'),
+    title: T('overview.goalsTitle', '업무 목표'),
+    monthLabel: T('overview.goalsMonthLabel', '이번 달'), monthTag: `${ref.getMonth() + 1}월`, month: T('overview.goalsMonth'),
+    weekLabel: T('overview.goalsWeekLabel', '이번 주'), weekTag: `${fmtMD(mon)}–${fmtMD(sun)}`, week: T('overview.goalsWeek'),
   };
 }
 const goalsNl = s => esc(s).replace(/\n/g, '<br>');   // 줄바꿈(\n) → <br>
@@ -1058,7 +834,7 @@ function buildSideGoals() {
 
 /* ── 단일 섹션 뷰: 탭을 누르면 그 내용만 표시 (보고용) ──
    #s1~#s6 은 #s-steps 컨테이너 안에 있으므로, step 탭은 #s-steps 를 켜고 그 안에서 해당 step 만 남긴다. */
-const TOP_SECTIONS = ['s-overview', 's-status', 's0', 's-steps', 's-info'];
+const TOP_SECTIONS = ['s-overview', 's-steps'];
 let activeHref = '#s-overview';
 function showOnly(href) {
   const id = (href || '#all').replace('#', '');
@@ -1105,11 +881,9 @@ function mount() {
   $('topmeta').innerHTML = `<span>${esc(T('app.evalDateLabel'))} <b>${esc(evalDate)}</b></span>`;
   { const el = $('topbar-lc'); if (el) el.innerHTML = buildTopbarLc(C); }
   { const fu = $('foot-updated'); if (fu) fu.textContent = T('app.updatedPrefix') + evalDate; }
+  { const el = $('side-line'); if (el) el.innerHTML = lineLayoutFigure(C, m); }
   $('s-overview').innerHTML = renderOverview(C, m, f, acc, op);
-  $('s-status').innerHTML = renderStatus(C, m);
-  $('s0').innerHTML = renderSummary(C, m, acc, op);
   $('s-steps').innerHTML = renderSteps(C, m, f, acc, op);
-  $('s-info').innerHTML = renderInfo(C, m);
 
   initRouter();   // 탭 = 해당 섹션만 표시 (단일 섹션 뷰). 인쇄 시에는 전체 펼침.
 }

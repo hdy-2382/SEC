@@ -35,6 +35,16 @@
   .sgoals .sg-lbl::before{content:"";width:4px;height:13px;border-radius:2px;background:#5fb0ec;flex:none}
   .sgoals .sg-lbl .sg-date{font-size:11px;font-weight:600;color:#a9c4de;background:rgba(255,255,255,.08);padding:1px 7px;border-radius:20px}
   .sgoals .sg-item p{margin:0 0 0 10px;font-size:11.5px;line-height:1.5;color:#cdd9ea;white-space:normal}
+  /* 사이드바 설비 레이아웃 박스 — 사진 크기와 무관하게 사이드바 폭/높이 고정 */
+  .side #side-line{margin:12px 12px 0}
+  .side #side-line .panel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);box-shadow:none;border-radius:10px;padding:11px 12px}
+  .side #side-line .ph{margin-bottom:8px}
+  .side #side-line .ph h3{color:#eaf3fc;font-size:12px}
+  .side #side-line .ph .vlabel{color:#a9c4de;font-size:10.5px}
+  .side #side-line .psub{display:none}
+  .side #side-line .layout-img{height:120px!important;border-radius:8px 8px 0 0}
+  .side #side-line .layout-cap{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);color:#cdd9ea;font-size:10.5px;line-height:1.4;padding:7px 9px}
+  .side #side-line .layout-cap b{color:#5fb0ec}
   .side .foot{margin-top:auto;padding:14px 20px 2px;font-size:11.5px;color:#7f93b0}.side .foot .dot{color:#46d07f}
   /* '상세 보기' 접이식 하위 탭 그룹 */
   .nav-collapse{display:flex;flex-direction:column;gap:2px;overflow:hidden;max-height:600px;transition:max-height .22s ease;
