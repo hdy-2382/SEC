@@ -344,19 +344,17 @@ function discussModel(mode) {
 
 /* 설비 평가 진행(라인 레이아웃) 패널 — 한눈에 보기 왼쪽 컬럼 + 상세 '개발 현황' 공용 */
 function lineLayoutFigure(C, m) {
-  const stations = (C.line && C.line.stations) || [];
-  const curSt = stations.find(s => s.status === 'current');
-  const passed = stations.filter(s => s.status === 'pass').map(s => s.name).join('·');
-  const waiting = stations.filter(s => s.status === 'wait').map(s => s.name).join('·');
-  const cap = curSt
-    ? `${esc(T('overview.lineCapEval'))} <b>${esc(curSt.name)} (${esc(curSt.role)})${m ? ' · ' + m.progress.cum + '/' + m.progress.target : ''}</b>${passed ? ' · ' + esc(passed) + ' ' + esc(T('overview.lineCapPassed')) : ''}${waiting ? ' · ' + esc(waiting) + ' ' + esc(T('overview.lineCapWaiting')) : ''}`
-    : esc(T('overview.lineCapFallback'));
   const img = (C.line && C.line.layoutImage) || 'data/assets/line_layout.png';
   const Lh = T('overview.lineImageHeight', 300);
   const Lfit = T('overview.lineImageFit', 'contain');
+  // 캡션: config에서 자유 편집(overview.lineCaption). {cum}/{target}은 자동 진행값, <b>..</b> 강조 태그 사용 가능.
+  const prog = (m && m.progress) || {};
+  const cap = TT('overview.lineCaption',
+    { cum: prog.cum != null ? prog.cum : '', target: prog.target != null ? prog.target : '' },
+    '현재 평가 <b>설비 3 (적재) · {cum}/{target}</b> · 설비 1·설비 2 통과 · 설비 4 대기');
   return `
       <div class="panel">
-        <div class="ph"><h3>${esc(T('overview.lineTitle'))}</h3><span class="vlabel" style="margin-left:auto">${esc(TT('overview.lineBadge', { n: stations.length }))}</span></div>
+        <div class="ph"><h3>${esc(T('overview.lineTitle'))}</h3></div>
         <div class="psub">${esc(T('overview.lineSub'))}</div>
         <div class="layout-figure">
           <div class="layout-img" style="height:${Lh}px"><img src="${esc(img)}" alt="${esc(T('overview.lineTitle'))}" style="object-fit:${esc(Lfit)}" onerror="this.style.opacity=.25"></div>
@@ -711,17 +709,17 @@ function renderOverview(C, m, f, acc, op) {
 
   return `
     <div class="ov-2col">
-      <div class="prog-track tk-exec"><div class="pt-h">📊 ${esc(O('trkExecLabel', '종합 클리어'))}</div>
+      <div class="prog-track tk-exec"><div class="pt-h">${esc(O('trkExecLabel', '종합 클리어'))}</div>
         <div class="clr-list">${clrTiles}</div>
-        <div class="exec-roi"><div class="exec-roi-h">💰 ${esc(O('execRoiTitle', 'ROI'))}</div><div class="exec-roi-body">${esc(O('execRoiHint', '투자 대비 효과 (개념) · 추후 입력'))}</div></div>
+        <div class="exec-roi"><div class="exec-roi-h">${esc(O('execRoiTitle', 'ROI'))}</div><div class="exec-roi-body">${esc(O('execRoiHint', '투자 대비 효과 (개념) · 추후 입력'))}</div></div>
       </div>
-      <div class="prog-track tk-a"><div class="pt-h">🎯 ${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>${kProgBox}${pGrowth}</div>
-      <div class="prog-track tk-b"><div class="pt-h">🛡 ${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}<span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
+      <div class="prog-track tk-a"><div class="pt-h">${esc(O('trkProgLabel', '완주 진행 → 성장 · 연결된 지표'))}<span class="badge ${goalCrit.status === 'pass' ? 'b-ok' : 'b-prog'}" style="margin-left:auto">${esc(goalCrit.status === 'pass' ? O('gateDone', '달성') : O('gateProg', '진행 중'))}</span></div>${kProgBox}${pGrowth}</div>
+      <div class="prog-track tk-b"><div class="pt-h">${esc(O('trkRelLabel', '신뢰성 입증 → 안정화 추세 · 연결된 지표'))}<span class="badge ${opBadge}" style="margin-left:auto">${esc(O('opTitle', '운용 신뢰도'))} ${esc(grade)}</span></div>${kRelBox}<div class="rel-charts">${pErr}${pStab}</div></div>
     </div>
-    <div class="prog-track track-wide tk-c"><div class="pt-h">🔍 ${esc(O('trkFaultLabel', '고장 분석 · 위험 매트릭스 · 빈발 · 최근 알람'))}</div><div class="fault-grid">${pMatrix}${pTop5}${pFeed}</div></div>
+    <div class="prog-track track-wide tk-c"><div class="pt-h">${esc(O('trkFaultLabel', '고장 분석 · 위험 매트릭스 · 빈발 · 최근 알람'))}</div><div class="fault-grid">${pMatrix}${pTop5}${pFeed}</div></div>
     <div class="dev-2col">
-      <div class="prog-track tk-d"><div class="pt-h">🤝 ${esc(O('trkDiscussLabel', '부서 협의 및 기타사항'))}</div>${pDiscuss}</div>
-      <div class="prog-track tk-dev"><div class="pt-h">🧭 ${esc(O('trkTechLabel', '기술 개발'))}</div>${pSw}</div>
+      <div class="prog-track tk-d"><div class="pt-h">${esc(O('trkDiscussLabel', '부서 협의 및 기타사항'))}</div>${pDiscuss}</div>
+      <div class="prog-track tk-dev"><div class="pt-h">${esc(O('trkTechLabel', '기술 개발'))}</div>${pSw}</div>
     </div>`;
 }
 
